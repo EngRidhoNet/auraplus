@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/domain/models/user_model.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -37,7 +38,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
   
-  Widget _buildProfileContent(BuildContext context, profile, WidgetRef ref) {
+  Widget _buildProfileContent(BuildContext context, UserModel profile, WidgetRef ref) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -90,7 +91,7 @@ class ProfileScreen extends ConsumerWidget {
                     border: Border.all(color: _getRoleColor(profile.role)),
                   ),
                   child: Text(
-                    profile.role.name.toUpperCase(),
+                    profile.role.displayName.toUpperCase(),
                     style: TextStyle(
                       color: _getRoleColor(profile.role),
                       fontWeight: FontWeight.bold,
@@ -121,7 +122,7 @@ class ProfileScreen extends ConsumerWidget {
           
           // Account Information
           _buildDetailCard('Account Information', [
-            _buildDetailRow('Role', profile.role.name),
+            _buildDetailRow('Role', profile.role.displayName),
             if (profile.createdAt != null)
               _buildDetailRow('Member Since', 
                   '${profile.createdAt!.day}/${profile.createdAt!.month}/${profile.createdAt!.year}'),
@@ -269,16 +270,14 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
   
-  Color _getRoleColor(role) {
-    switch (role.name) {
-      case 'child':
+  Color _getRoleColor(UserRole role) {
+    switch (role) {
+      case UserRole.child:
         return Colors.green;
-      case 'parent':
+      case UserRole.parent:
         return Colors.blue;
-      case 'therapist':
+      case UserRole.therapist:
         return Colors.purple;
-      default:
-        return Colors.grey;
     }
   }
 }

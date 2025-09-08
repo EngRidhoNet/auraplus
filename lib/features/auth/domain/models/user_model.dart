@@ -31,5 +31,17 @@ enum UserRole {
   @JsonValue('parent')
   parent,
   @JsonValue('therapist')
-  therapist,
+  therapist;
+  
+  // Add getter for display name
+  String get displayName {
+    switch (this) {
+      case UserRole.child:
+        return 'Child';
+      case UserRole.parent:
+        return 'Parent';
+      case UserRole.therapist:
+        return 'Therapist';
+    }
+  }
 }
