@@ -1,0 +1,136 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# ============ AURA+ SPECIFIC ADDITIONS ============
+
+# Environment & Secrets
+.env
+.env.local
+.env.dev
+.env.prod
+.env.staging
+secrets.json
+credentials.json
+
+# Supabase Keys & Config
+supabase/.env
+supabase/config.toml
+.supabase/
+
+# AI/ML Models (jika large files)
+assets/models/ai/*.tflite
+assets/models/ml/*.pb
+*.h5
+*.onnx
+*.mlmodel
+
+# Unity Builds & Cache
+unity/Library/
+unity/Logs/
+unity/Temp/
+unity/obj/
+unity/Builds/
+unity/**/*.tmp
+unity/**/*.log
+
+# Audio & Media Files (jika besar)
+assets/audio/large/
+assets/therapy_content/videos/
+*.wav
+*.mp4
+*.mov
+
+# Database backups
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# Private keys & certificates
+*.p12
+*.key
+*.pem
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+
+# Testing & Coverage
+coverage/
+test_coverage/
+*.coverage
+.nyc_output/
+
+# Logs
+logs/
+*.log.*
+
+# OS specific
+Thumbs.db
+.DS_Store?
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+*.gr.dart
+*.config.dart
+
+# Local storage
+storage/
+uploads/
+cache/
+
+# Documentation builds
+docs/_build/
+site/
+
+lib/core/config/credentials.dart
+lib/core/config/secrets.dart
+lib/core/config/private_config.dart
