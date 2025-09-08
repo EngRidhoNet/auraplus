@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/user_model.dart';
 import '../../../../core/services/auth_service.dart';
 
+
 // Auth Service Provider
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();

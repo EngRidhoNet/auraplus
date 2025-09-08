@@ -7,17 +7,18 @@ import 'core/config/credentials.dart';
 import 'core/utils/logger.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/profile/presentation/screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
-  
+
   // Initialize Supabase
   try {
     await Supabase.initialize(
@@ -29,7 +30,7 @@ void main() async {
   } catch (e) {
     AppLogger.error('Failed to initialize Supabase: $e');
   }
-  
+
   runApp(
     const ProviderScope(
       child: AuraPlusApp(),
@@ -43,7 +44,7 @@ class AuraPlusApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
-    
+
     return MaterialApp(
       title: 'AURA+',
       theme: ThemeData(
@@ -51,7 +52,8 @@ class AuraPlusApp extends ConsumerWidget {
         useMaterial3: true,
       ),
       home: currentUser.when(
-        data: (user) => user != null ? const DashboardScreen() : const LoginScreen(),
+        data: (user) =>
+            user != null ? const DashboardScreen() : const LoginScreen(),
         loading: () => const LoadingScreen(),
         error: (error, stack) => const LoginScreen(),
       ),
@@ -79,13 +81,22 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('AURA+ Dashboard'),
         backgroundColor: Colors.blue.shade600,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -133,9 +144,9 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Features Section
             const Text(
               'Features',
@@ -144,9 +155,9 @@ class DashboardScreen extends ConsumerWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Feature Cards
             Expanded(
               child: GridView.count(
@@ -160,7 +171,8 @@ class DashboardScreen extends ConsumerWidget {
                     Colors.green,
                     () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Vocabulary Therapy coming soon!')),
+                        const SnackBar(
+                            content: Text('Vocabulary Therapy coming soon!')),
                       );
                     },
                   ),
@@ -170,7 +182,8 @@ class DashboardScreen extends ConsumerWidget {
                     Colors.orange,
                     () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Verbal Therapy coming soon!')),
+                        const SnackBar(
+                            content: Text('Verbal Therapy coming soon!')),
                       );
                     },
                   ),
@@ -180,7 +193,8 @@ class DashboardScreen extends ConsumerWidget {
                     Colors.purple,
                     () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('AAC Therapy coming soon!')),
+                        const SnackBar(
+                            content: Text('AAC Therapy coming soon!')),
                       );
                     },
                   ),
@@ -190,7 +204,8 @@ class DashboardScreen extends ConsumerWidget {
                     Colors.blue,
                     () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Progress Report coming soon!')),
+                        const SnackBar(
+                            content: Text('Progress Report coming soon!')),
                       );
                     },
                   ),
@@ -202,8 +217,9 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-  
-  Widget _buildFeatureCard(String title, IconData icon, Color color, VoidCallback onTap) {
+
+  Widget _buildFeatureCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
