@@ -1,3 +1,4 @@
+import 'package:aura_plus/features/therapy/presentation/screens/therapy_categories_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -170,9 +171,11 @@ class DashboardScreen extends ConsumerWidget {
                     Icons.abc,
                     Colors.green,
                     () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Vocabulary Therapy coming soon!')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                const TherapyCategoriesScreen()),
                       );
                     },
                   ),

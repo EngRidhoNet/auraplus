@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/domain/models/user_model.dart';
 import '../utils/logger.dart';
@@ -91,13 +92,12 @@ class ProfileService {
       return null;
     }
   }
-  
   // Upload avatar
   Future<String?> uploadAvatar(String userId, String filePath) async {
     try {
       final file = await _supabase.storage
           .from('avatars')
-          .upload('$userId/avatar.jpg', filePath);
+          .upload('$userId/avatar.jpg', File(filePath));
       
       final publicUrl = _supabase.storage
           .from('avatars')
