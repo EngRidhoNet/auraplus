@@ -5,41 +5,44 @@ import '../providers/therapy_provider.dart';
 import '../../domain/models/therapy_category.dart';
 import '../../domain/models/therapy_content.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import 'ar_vocabulary_screen.dart';
 
 class VocabularyTherapyScreen extends ConsumerStatefulWidget {
   final TherapyCategory category;
-  
+
   const VocabularyTherapyScreen({
     super.key,
     required this.category,
   });
 
   @override
-  ConsumerState<VocabularyTherapyScreen> createState() => _VocabularyTherapyScreenState();
+  ConsumerState<VocabularyTherapyScreen> createState() =>
+      _VocabularyTherapyScreenState();
 }
 
-class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScreen> {
+class _VocabularyTherapyScreenState
+    extends ConsumerState<VocabularyTherapyScreen> {
   int currentIndex = 0;
   int correctAnswers = 0;
   int totalAnswers = 0;
   DateTime? sessionStartTime;
   String? currentSessionId;
-  
+
   @override
   void initState() {
     super.initState();
     sessionStartTime = DateTime.now();
     _startTherapySession();
   }
-  
+
   Future<void> _startTherapySession() async {
     final currentUser = ref.read(currentUserProvider).value;
     if (currentUser != null) {
       await ref.read(currentSessionProvider.notifier).startSession(
-        userId: currentUser.id,
-        categoryId: widget.category.id,
-        sessionType: SessionType.vocabulary,
-      );
+            userId: currentUser.id,
+            categoryId: widget.category.id,
+            sessionType: SessionType.vocabulary,
+          );
     }
   }
 
@@ -47,7 +50,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
   Widget build(BuildContext context) {
     final contentAsync = ref.watch(therapyContentProvider(widget.category.id));
     final currentSession = ref.watch(currentSessionProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.category.name),
@@ -82,14 +85,14 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ),
     );
   }
-  
+
   Widget _buildTherapyContent(List<TherapyContent> content) {
     if (currentIndex >= content.length) {
       return _buildSessionComplete();
     }
-    
+
     final currentContent = content[currentIndex];
-    
+
     return Column(
       children: [
         // Progress Bar
@@ -98,7 +101,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
           backgroundColor: Colors.grey.shade300,
           valueColor: AlwaysStoppedAnimation<Color>(_getCategoryColor()),
         ),
-        
+
         // Content
         Expanded(
           child: Padding(
@@ -143,16 +146,16 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Word Card
                 Expanded(
                   child: _buildWordCard(currentContent),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Action Buttons
                 _buildActionButtons(content),
               ],
@@ -162,7 +165,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ],
     );
   }
-  
+
   Widget _buildWordCard(TherapyContent content) {
     return Card(
       elevation: 8,
@@ -198,9 +201,9 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
                 color: _getCategoryColor(),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Word
             Text(
               content.targetWord,
@@ -210,9 +213,9 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
                 color: Colors.grey.shade800,
               ),
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Description
             if (content.description != null)
               Text(
@@ -223,14 +226,26 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
                   color: Colors.grey.shade600,
                 ),
               ),
-              
+
             const SizedBox(height: 20),
-            
+
             // AR Button (placeholder)
+            // Replace AR Button dengan ini:
             ElevatedButton.icon(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('AR View coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ARVocabularyScreen(
+                      content: content,
+                      onComplete: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('AR session completed!')),
+                        );
+                      },
+                    ),
+                  ),
                 );
               },
               icon: const Icon(Icons.view_in_ar),
@@ -238,7 +253,8 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
               style: ElevatedButton.styleFrom(
                 backgroundColor: _getCategoryColor(),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -246,7 +262,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ),
     );
   }
-  
+
   Widget _buildActionButtons(List<TherapyContent> content) {
     return Row(
       children: [
@@ -263,9 +279,9 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
             ),
           ),
         ),
-        
+
         const SizedBox(width: 16),
-        
+
         // I Got It Right
         Expanded(
           child: ElevatedButton.icon(
@@ -282,13 +298,14 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ],
     );
   }
-  
+
   Widget _buildSessionComplete() {
-    final accuracy = totalAnswers > 0 ? (correctAnswers / totalAnswers * 100) : 0.0;
-    final duration = sessionStartTime != null 
+    final accuracy =
+        totalAnswers > 0 ? (correctAnswers / totalAnswers * 100) : 0.0;
+    final duration = sessionStartTime != null
         ? DateTime.now().difference(sessionStartTime!).inSeconds
         : 0;
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -300,9 +317,9 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
               size: 80,
               color: _getCategoryColor(),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             const Text(
               'Session Complete!',
               style: TextStyle(
@@ -310,9 +327,9 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
                 fontWeight: FontWeight.bold,
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Stats
             Container(
               padding: const EdgeInsets.all(24),
@@ -324,15 +341,16 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
                 children: [
                   _buildStatRow('Accuracy', '${accuracy.toStringAsFixed(1)}%'),
                   const SizedBox(height: 12),
-                  _buildStatRow('Correct Answers', '$correctAnswers/$totalAnswers'),
+                  _buildStatRow(
+                      'Correct Answers', '$correctAnswers/$totalAnswers'),
                   const SizedBox(height: 12),
                   _buildStatRow('Duration', '${duration}s'),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Action Buttons
             Column(
               children: [
@@ -356,9 +374,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
                     child: const Text('Try Again'),
                   ),
                 ),
-                
                 const SizedBox(height: 12),
-                
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
@@ -376,7 +392,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ),
     );
   }
-  
+
   Widget _buildStatRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -396,7 +412,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ],
     );
   }
-  
+
   Widget _buildEmptyContent() {
     return const Center(
       child: Column(
@@ -412,7 +428,7 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ),
     );
   }
-  
+
   Widget _buildErrorContent(String error) {
     return Center(
       child: Column(
@@ -429,58 +445,62 @@ class _VocabularyTherapyScreenState extends ConsumerState<VocabularyTherapyScree
       ),
     );
   }
-  
+
   void _handleAnswer(bool isCorrect, List<TherapyContent> content) {
     setState(() {
       totalAnswers++;
       if (isCorrect) correctAnswers++;
       currentIndex++;
     });
-    
+
     // Record progress
     final currentSession = ref.read(currentSessionProvider).value;
     final currentUser = ref.read(currentUserProvider).value;
-    
-    if (currentSession != null && currentUser != null && currentIndex <= content.length) {
+
+    if (currentSession != null &&
+        currentUser != null &&
+        currentIndex <= content.length) {
       ref.read(currentSessionProvider.notifier).recordProgress(
-        sessionId: currentSession.id,
-        contentId: content[currentIndex - 1].id,
-        userId: currentUser.id,
-        isCorrect: isCorrect,
-      );
+            sessionId: currentSession.id,
+            contentId: content[currentIndex - 1].id,
+            userId: currentUser.id,
+            isCorrect: isCorrect,
+          );
     }
-    
+
     // Complete session if finished
     if (currentIndex >= content.length) {
       _completeSession();
     }
   }
-  
+
   void _completeSession() {
     final currentSession = ref.read(currentSessionProvider).value;
     if (currentSession != null) {
-      final duration = sessionStartTime != null 
+      final duration = sessionStartTime != null
           ? DateTime.now().difference(sessionStartTime!).inSeconds
           : 0;
-      
+
       ref.read(currentSessionProvider.notifier).completeSession(
-        sessionId: currentSession.id,
-        completedItems: totalAnswers,
-        correctAnswers: correctAnswers,
-        score: totalAnswers > 0 ? (correctAnswers / totalAnswers * 100) : 0.0,
-        durationSeconds: duration,
-      );
+            sessionId: currentSession.id,
+            completedItems: totalAnswers,
+            correctAnswers: correctAnswers,
+            score:
+                totalAnswers > 0 ? (correctAnswers / totalAnswers * 100) : 0.0,
+            durationSeconds: duration,
+          );
     }
   }
-  
+
   Color _getCategoryColor() {
     try {
-      return Color(int.parse(widget.category.color.substring(1), radix: 16) + 0xFF000000);
+      return Color(int.parse(widget.category.color.substring(1), radix: 16) +
+          0xFF000000);
     } catch (e) {
       return Colors.green;
     }
   }
-  
+
   IconData _getContentIcon(String word) {
     switch (word.toLowerCase()) {
       case 'cat':

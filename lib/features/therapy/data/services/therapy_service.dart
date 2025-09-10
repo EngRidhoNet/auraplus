@@ -29,40 +29,70 @@ class TherapyService {
   
   // ========== THERAPY CONTENT ==========
   
-  Future<List<TherapyContent>> getTherapyContent({
-    String? categoryId,
-    int? difficultyLevel,
-    ContentType? contentType,
-  }) async {
-    try {
-      var query = _supabase
-          .from('therapy_content')
-          .select()
-          .eq('is_active', true);
-      
-      if (categoryId != null) {
-        query = query.eq('category_id', categoryId);
-      }
-      
-      if (difficultyLevel != null) {
-        query = query.eq('difficulty_level', difficultyLevel);
-      }
-      
-      if (contentType != null) {
-        query = query.eq('content_type', contentType.name);
-      }
-      
-      final response = await query.order('difficulty_level');
-      
-      AppLogger.success('Therapy content loaded: ${response.length} items');
-      return (response as List)
-          .map((content) => TherapyContent.fromJson(content))
-          .toList();
-    } catch (e) {
-      AppLogger.error('Failed to get therapy content: $e');
+Future<List<TherapyContent>> getTherapyContent({
+  String? categoryId,
+  int? difficultyLevel,
+  ContentType? contentType,
+}) async {
+  try {
+    print('🔍 Getting therapy content for categoryId: $categoryId');
+    
+    var query = _supabase
+        .from('therapy_content')
+        .select()
+        .eq('is_active', true);
+    
+    if (categoryId != null) {
+      query = query.eq('category_id', categoryId);
+      print('🔍 Filtering by category_id: $categoryId');
+    }
+    
+    if (difficultyLevel != null) {
+      query = query.eq('difficulty_level', difficultyLevel);
+    }
+    
+    if (contentType != null) {
+      query = query.eq('content_type', contentType.name);
+    }
+    
+    print('🔍 About to execute query...');
+    
+    // Add timeout to prevent hanging
+    final response = await query
+        .order('difficulty_level')
+        .timeout(const Duration(seconds: 10));
+    
+    print('🔍 Raw response: $response');
+    print('🔍 Response type: ${response.runtimeType}');
+    print('🔍 Response length: ${response.length}');
+    
+    if (response.isEmpty) {
+      print('⚠️ No content found for categoryId: $categoryId');
       return [];
     }
+    
+    final contentList = (response as List)
+        .map((content) {
+          print('🔍 Processing content: $content');
+          try {
+            return TherapyContent.fromJson(content);
+          } catch (e) {
+            print('❌ Error parsing content: $e');
+            print('❌ Content data: $content');
+            rethrow;
+          }
+        })
+        .toList();
+    
+    AppLogger.success('Therapy content loaded: ${contentList.length} items');
+    return contentList;
+  } catch (e, stackTrace) {
+    print('❌ Error in getTherapyContent: $e');
+    print('❌ Stack trace: $stackTrace');
+    AppLogger.error('Failed to get therapy content: $e');
+    return [];
   }
+}
   
   Future<TherapyContent?> getTherapyContentById(String contentId) async {
     try {

@@ -91,7 +91,7 @@ class ProfileScreen extends ConsumerWidget {
                     border: Border.all(color: _getRoleColor(profile.role)),
                   ),
                   child: Text(
-                    profile.role.displayName.toUpperCase(),
+                    _getRoleDisplayName(profile.role).toUpperCase(),
                     style: TextStyle(
                       color: _getRoleColor(profile.role),
                       fontWeight: FontWeight.bold,
@@ -122,7 +122,7 @@ class ProfileScreen extends ConsumerWidget {
           
           // Account Information
           _buildDetailCard('Account Information', [
-            _buildDetailRow('Role', profile.role.displayName),
+            _buildDetailRow('Role', _getRoleDisplayName(profile.role)),
             if (profile.createdAt != null)
               _buildDetailRow('Member Since', 
                   '${profile.createdAt!.day}/${profile.createdAt!.month}/${profile.createdAt!.year}'),
@@ -278,6 +278,21 @@ class ProfileScreen extends ConsumerWidget {
         return Colors.blue;
       case UserRole.therapist:
         return Colors.purple;
+      case UserRole.admin:
+        return Colors.orange;
+    }
+  }
+  
+  String _getRoleDisplayName(UserRole role) {
+    switch (role) {
+      case UserRole.child:
+        return 'Child';
+      case UserRole.parent:
+        return 'Parent';
+      case UserRole.therapist:
+        return 'Therapist';
+      case UserRole.admin:
+        return 'Admin';
     }
   }
 }

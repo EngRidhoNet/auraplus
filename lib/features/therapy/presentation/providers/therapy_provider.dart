@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:riverpod/riverpod.dart';
 import '../../domain/models/therapy_category.dart';
 import '../../domain/models/therapy_content.dart';
 import '../../domain/models/therapy_session.dart';
@@ -115,6 +118,8 @@ class CurrentSessionNotifier extends StateNotifier<AsyncValue<TherapySession?>> 
       );
     } catch (e) {
       // Log error but don't update state for progress recording
+      // TODO: Use proper logging framework
+      debugPrint('Failed to record progress: $e');
       print('Failed to record progress: $e');
     }
   }
