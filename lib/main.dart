@@ -1,3 +1,4 @@
+import 'package:aura_plus/features/therapy/domain/models/therapy_session.dart';
 import 'package:aura_plus/features/therapy/presentation/screens/therapy_categories_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -168,14 +169,17 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   _buildFeatureCard(
                     'Vocabulary Therapy',
-                    Icons.abc,
+                    Icons.school,
                     Colors.green,
                     () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) =>
-                                const TherapyCategoriesScreen()),
+                          builder: (context) => const TherapyCategoriesScreen(
+                            sessionType: SessionType.vocabulary,
+                            title: 'Vocabulary Therapy',
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -184,20 +188,30 @@ class DashboardScreen extends ConsumerWidget {
                     Icons.record_voice_over,
                     Colors.orange,
                     () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Verbal Therapy coming soon!')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TherapyCategoriesScreen(
+                            sessionType: SessionType.verbal,
+                            title: 'Verbal Therapy',
+                          ),
+                        ),
                       );
                     },
                   ),
                   _buildFeatureCard(
-                    'AAC Therapy',
+                    'AAC Tools',
                     Icons.touch_app,
                     Colors.purple,
                     () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('AAC Therapy coming soon!')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TherapyCategoriesScreen(
+                            sessionType: SessionType.aac,
+                            title: 'AAC Communication',
+                          ),
+                        ),
                       );
                     },
                   ),

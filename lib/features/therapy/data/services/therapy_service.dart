@@ -4,6 +4,10 @@ import '../../domain/models/therapy_content.dart';
 import '../../domain/models/therapy_session.dart';
 import '../../../../core/utils/logger.dart';
 
+// Import enums if they're defined separately
+// If SessionStatus and SessionType are in therapy_session.dart, they should be available
+// If not, you may need to add the correct import path
+
 class TherapyService {
   final SupabaseClient _supabase = Supabase.instance.client;
   
