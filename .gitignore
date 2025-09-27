@@ -133,4 +133,4 @@ site/
 
 lib/core/config/credentials.dart
 lib/core/config/secrets.dart
-lib/core/config/private_config.dart
+lib/core/config/private_config.dart.git_broken/

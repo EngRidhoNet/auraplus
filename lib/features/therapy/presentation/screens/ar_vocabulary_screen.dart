@@ -426,12 +426,151 @@ class _ARVocabularyScreenState extends State<ARVocabularyScreen>
   Widget _buildCurrentARMode() {
     switch (_currentARMode) {
       case 'model':
-        return AR3DModelViewer(content: widget.content);
+        return _build3DModelViewer();
       case 'pronunciation':
-        return ARPronunciationGuide(content: widget.content);
+        return _buildPronunciationGuide();
       default:
         return _buildEnhancedWordDisplay();
     }
+  }
+
+  Widget _build3DModelViewer() {
+    return AnimatedBuilder(
+      animation: _rotationController,
+      builder: (context, child) {
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateY(_rotationController.value * 2 * pi)
+            ..rotateX(sin(_rotationController.value * 2 * pi) * 0.3),
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: [
+                  Colors.blue.withOpacity(0.8),
+                  Colors.purple.withOpacity(0.9),
+                  Colors.indigo.withOpacity(1.0),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.5),
+                  blurRadius: 30,
+                  offset: const Offset(0, 15),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.view_in_ar,
+                    size: 48,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.content.targetWord.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Text(
+                    '3D Model',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPronunciationGuide() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.orange.withOpacity(0.9),
+            Colors.red.withOpacity(0.9),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.5),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: 1.0 + _pulseController.value * 0.1,
+                child: const Icon(
+                  Icons.volume_up,
+                  size: 48,
+                  color: Colors.white,
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.content.targetWord.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          if (widget.content.pronunciation != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              widget.content.pronunciation!,
+              style: const TextStyle(
+                fontSize: 18,
+                fontStyle: FontStyle.italic,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              // Simulate pronunciation playback
+              HapticFeedback.mediumImpact();
+            },
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Play Pronunciation'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.orange,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildEnhancedWordDisplay() {
