@@ -497,7 +497,10 @@ class TherapyCategoriesScreen extends ConsumerWidget {
         );
         break;
       case SessionType.aac:
-        destinationScreen = AACTherapyScreen(category: category);
+        destinationScreen = AACTherapyScreen(
+          categoryId: category.id,
+          categoryName: category.name,
+        );
         break;
     }
     

@@ -1,59 +1,483 @@
 import 'package:flutter/material.dart';
-import '../../domain/models/therapy_category.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import '../../domain/models/therapy_content.dart';
+import '../providers/therapy_provider.dart';
 
-class AACTherapyScreen extends StatelessWidget {
-  final TherapyCategory category;
-  
+class AACTherapyScreen extends ConsumerStatefulWidget {
+  final String categoryId;
+  final String categoryName;
+
   const AACTherapyScreen({
-    super.key,
-    required this.category,
-  });
+    Key? key,
+    required this.categoryId,
+    required this.categoryName,
+  }) : super(key: key);
+
+  @override
+  ConsumerState<AACTherapyScreen> createState() => _AACTherapyScreenState();
+}
+
+class _AACTherapyScreenState extends ConsumerState<AACTherapyScreen> {
+  final FlutterTts _flutterTts = FlutterTts();
+  final List<TherapyContent> _selectedSymbols = [];
+  String _selectedCategory = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeTTS();
+  }
+
+  Future<void> _initializeTTS() async {
+    await _flutterTts.setLanguage("id-ID");
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.0);
+  }
+
+  Future<void> _speak() async {
+    if (_selectedSymbols.isEmpty) return;
+    
+    final sentence = _selectedSymbols
+        .map((symbol) => symbol.title ?? '')
+        .join(' ');
+    
+    await _flutterTts.speak(sentence);
+  }
+
+  void _addSymbol(TherapyContent content) {
+    setState(() {
+      _selectedSymbols.add(content);
+    });
+  }
+
+  void _removeSymbol(int index) {
+    setState(() {
+      _selectedSymbols.removeAt(index);
+    });
+  }
+
+  void _clearAll() {
+    setState(() {
+      _selectedSymbols.clear();
+    });
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final contentAsync = ref.watch(therapyContentProvider(widget.categoryId));
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text('AAC - ${category.name}'),
-        backgroundColor: Colors.purple.shade700,
-        foregroundColor: Colors.white,
+        title: Text(
+          widget.categoryName,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: const Color(0xFF9C27B0), // Purple theme
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () {
+              _showInfoDialog();
+            },
+          ),
+        ],
       ),
-      body: Center(
+      body: Column(
+        children: [
+          // Category Filter Tabs
+          _buildCategoryTabs(),
+          
+          // AAC Symbol Grid
+          Expanded(
+            child: contentAsync.when(
+              data: (contents) {
+                final filteredContents = _selectedCategory == 'all'
+                    ? contents
+                    : contents.where((c) => 
+                        c.title?.toLowerCase().contains(_selectedCategory.toLowerCase()) ?? false
+                      ).toList();
+
+                if (filteredContents.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.85,
+                    ),
+                    itemCount: filteredContents.length,
+                    itemBuilder: (context, index) {
+                      return _buildSymbolCard(filteredContents[index]);
+                    },
+                  ),
+                );
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF9C27B0),
+                ),
+              ),
+              error: (error, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error: $error',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Sentence Builder Bar
+          _buildSentenceBuilder(),
+        ],
+      ),
+      floatingActionButton: _selectedSymbols.isNotEmpty
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Speak Button
+                FloatingActionButton(
+                  heroTag: 'speak',
+                  backgroundColor: const Color(0xFF9C27B0),
+                  onPressed: _speak,
+                  child: const Icon(Icons.volume_up),
+                ),
+                const SizedBox(height: 12),
+                // Clear Button
+                FloatingActionButton(
+                  heroTag: 'clear',
+                  backgroundColor: Colors.red,
+                  mini: true,
+                  onPressed: _clearAll,
+                  child: const Icon(Icons.clear_all),
+                ),
+              ],
+            )
+          : null,
+    );
+  }
+
+  Widget _buildCategoryTabs() {
+    final categories = [
+      {'id': 'all', 'name': 'Semua', 'icon': Icons.apps},
+      {'id': 'makan', 'name': 'Makanan', 'icon': Icons.restaurant},
+      {'id': 'minum', 'name': 'Minuman', 'icon': Icons.local_drink},
+      {'id': 'emosi', 'name': 'Emosi', 'icon': Icons.emoji_emotions},
+      {'id': 'aktivitas', 'name': 'Aktivitas', 'icon': Icons.directions_run},
+      {'id': 'tempat', 'name': 'Tempat', 'icon': Icons.location_on},
+    ];
+
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        itemCount: categories.length,
+        itemBuilder: (context, index) {
+          final category = categories[index];
+          final isSelected = _selectedCategory == category['id'];
+          
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = category['id'] as String;
+                });
+              },
+              child: Container(
+                width: 80,
+                decoration: BoxDecoration(
+                  color: isSelected 
+                      ? const Color(0xFF9C27B0) 
+                      : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      category['icon'] as IconData,
+                      color: isSelected ? Colors.white : Colors.grey[700],
+                      size: 28,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      category['name'] as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : Colors.grey[700],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSymbolCard(TherapyContent content) {
+    final displayText = content.title ?? '';
+    final imageUrl = ''; // TODO: Add proper image URL field to TherapyContent model
+
+    return InkWell(
+      onTap: () => _addSymbol(content),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.touch_app,
-              size: 80,
-              color: Colors.purple.shade300,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'AAC Therapy',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.purple.shade700,
+            // Symbol Image/Icon
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE1BEE7), // Light purple
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: imageUrl.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.image_not_supported,
+                            size: 32,
+                            color: Color(0xFF9C27B0),
+                          );
+                        },
+                      ),
+                    )
+                  : const Icon(
+                      Icons.chat_bubble_outline,
+                      size: 32,
+                      color: Color(0xFF9C27B0),
+                    ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Coming Soon!',
-              style: TextStyle(
-                fontSize: 20,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'AAC (Augmentative and Alternative Communication)\ntools will be available here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
+            const SizedBox(height: 8),
+            // Symbol Text
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                displayText,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF424242),
+                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSentenceBuilder() {
+    return Container(
+      height: 120,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.message,
+                  color: Color(0xFF9C27B0),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Kalimat Saya:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF424242),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_selectedSymbols.length} kata',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _selectedSymbols.isEmpty
+                ? Center(
+                    child: Text(
+                      'Pilih symbol untuk membuat kalimat',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: _selectedSymbols.length,
+                    itemBuilder: (context, index) {
+                      final symbol = _selectedSymbols[index];
+                      final displayText = symbol.title ?? '';
+                      
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Chip(
+                          label: Text(displayText),
+                          deleteIcon: const Icon(
+                            Icons.close,
+                            size: 18,
+                          ),
+                          onDeleted: () => _removeSymbol(index),
+                          backgroundColor: const Color(0xFFE1BEE7),
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF424242),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 80,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Tidak ada symbol tersedia',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.info, color: Color(0xFF9C27B0)),
+            SizedBox(width: 8),
+            Text('Cara Menggunakan AAC'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('1. Pilih kategori yang diinginkan'),
+            SizedBox(height: 8),
+            Text('2. Tap symbol untuk menambahkan ke kalimat'),
+            SizedBox(height: 8),
+            Text('3. Tekan tombol speaker untuk membaca kalimat'),
+            SizedBox(height: 8),
+            Text('4. Tekan X pada chip untuk menghapus kata'),
+            SizedBox(height: 8),
+            Text('5. Gunakan tombol clear untuk hapus semua'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Mengerti',
+              style: TextStyle(color: Color(0xFF9C27B0)),
+            ),
+          ),
+        ],
       ),
     );
   }
