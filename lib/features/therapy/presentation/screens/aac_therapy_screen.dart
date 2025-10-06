@@ -1,3 +1,4 @@
+import 'package:aura_plus/core/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -30,21 +31,56 @@ class _AACTherapyScreenState extends ConsumerState<AACTherapyScreen> {
   }
 
   Future<void> _initializeTTS() async {
-    await _flutterTts.setLanguage("id-ID");
-    await _flutterTts.setSpeechRate(0.5);
-    await _flutterTts.setVolume(1.0);
-    await _flutterTts.setPitch(1.0);
+    try {
+      // Set language ke Bahasa Indonesia
+      await _flutterTts.setLanguage("id-ID");
+      
+      // Set speech rate (kecepatan bicara) - 0.5 = lambat, 1.0 = normal
+      await _flutterTts.setSpeechRate(0.4); // 👈 Lebih lambat untuk clarity
+      
+      // Set volume
+      await _flutterTts.setVolume(1.0);
+      
+      // Set pitch (tinggi rendah suara) - 1.0 = normal
+      await _flutterTts.setPitch(1.0);
+
+      // 👇 TAMBAHKAN INI - Set voice secara eksplisit untuk Android
+      if (Theme.of(context).platform == TargetPlatform.android) {
+        // Untuk Android, cari voice Indonesia
+        var voices = await _flutterTts.getVoices;
+        
+        // Print available voices untuk debugging
+        AppLogger.info('Available voices: $voices');
+        
+        // Cari voice Indonesia
+        var indonesianVoice = voices.firstWhere(
+          (voice) => 
+            voice['locale'].toString().startsWith('id') || 
+            voice['name'].toString().toLowerCase().contains('indonesia'),
+          orElse: () => voices.first,
+        );
+        
+        if (indonesianVoice != null) {
+          await _flutterTts.setVoice({
+            "name": indonesianVoice['name'],
+            "locale": indonesianVoice['locale']
+          });
+          AppLogger.info('Using voice: ${indonesianVoice['name']}');
+        }
+      }
+      
+      // 👇 TAMBAHKAN INI - Set voice untuk iOS
+      if (Theme.of(context).platform == TargetPlatform.iOS) {
+        await _flutterTts.setVoice({"name": "id-ID-language", "locale": "id-ID"});
+      }
+
+      AppLogger.success('TTS initialized with Indonesian voice');
+      
+    } catch (e) {
+      AppLogger.error('Error initializing TTS: $e');
+    }
   }
 
-  Future<void> _speak() async {
-    if (_selectedSymbols.isEmpty) return;
-    
-    final sentence = _selectedSymbols
-        .map((symbol) => symbol.title ?? '')
-        .join(' ');
-    
-    await _flutterTts.speak(sentence);
-  }
 
   void _addSymbol(TherapyContent content) {
     setState(() {
@@ -99,16 +135,20 @@ class _AACTherapyScreenState extends ConsumerState<AACTherapyScreen> {
         children: [
           // Category Filter Tabs
           _buildCategoryTabs(),
-          
+
           // AAC Symbol Grid
           Expanded(
             child: contentAsync.when(
               data: (contents) {
                 final filteredContents = _selectedCategory == 'all'
                     ? contents
-                    : contents.where((c) => 
-                        c.title?.toLowerCase().contains(_selectedCategory.toLowerCase()) ?? false
-                      ).toList();
+                    : contents
+                        .where((c) =>
+                            c.title
+                                ?.toLowerCase()
+                                .contains(_selectedCategory.toLowerCase()) ??
+                            false)
+                        .toList();
 
                 if (filteredContents.isEmpty) {
                   return _buildEmptyState();
@@ -117,7 +157,8 @@ class _AACTherapyScreenState extends ConsumerState<AACTherapyScreen> {
                 return Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -215,7 +256,7 @@ class _AACTherapyScreenState extends ConsumerState<AACTherapyScreen> {
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = _selectedCategory == category['id'];
-          
+
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: InkWell(
@@ -227,9 +268,8 @@ class _AACTherapyScreenState extends ConsumerState<AACTherapyScreen> {
               child: Container(
                 width: 80,
                 decoration: BoxDecoration(
-                  color: isSelected 
-                      ? const Color(0xFF9C27B0) 
-                      : Colors.grey[200],
+                  color:
+                      isSelected ? const Color(0xFF9C27B0) : Colors.grey[200],
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -260,165 +300,182 @@ class _AACTherapyScreenState extends ConsumerState<AACTherapyScreen> {
     );
   }
 
-  Widget _buildSymbolCard(TherapyContent content) {
-    final displayText = content.title ?? '';
-    final imageUrl = ''; // TODO: Add proper image URL field to TherapyContent model
+  // ...existing code...
 
-    return InkWell(
-      onTap: () => _addSymbol(content),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Symbol Image/Icon
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE1BEE7), // Light purple
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: imageUrl.isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.image_not_supported,
-                            size: 32,
-                            color: Color(0xFF9C27B0),
-                          );
-                        },
-                      ),
-                    )
-                  : const Icon(
-                      Icons.chat_bubble_outline,
-                      size: 32,
-                      color: Color(0xFF9C27B0),
-                    ),
-            ),
-            const SizedBox(height: 8),
-            // Symbol Text
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                displayText,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF424242),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+Widget _buildSymbolCard(TherapyContent content) {
+  final displayText = content.title; // Tidak perlu null check karena required
+  final imageUrl = content.imageUrl ?? ''; // 👈 Sudah sesuai dengan model baru
 
-  Widget _buildSentenceBuilder() {
-    return Container(
-      height: 120,
+  return InkWell(
+    onTap: () => _addSymbol(content),
+    child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 8,
-            offset: const Offset(0, -2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.message,
-                  color: Color(0xFF9C27B0),
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Kalimat Saya:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF424242),
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${_selectedSymbols.length} kata',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+          // Symbol Image/Icon
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE1BEE7), // Light purple
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          Expanded(
-            child: _selectedSymbols.isEmpty
-                ? Center(
-                    child: Text(
-                      'Pilih symbol untuk membuat kalimat',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 13,
-                      ),
+            child: imageUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.image_not_supported,
+                          size: 32,
+                          color: Color(0xFF9C27B0),
+                        );
+                      },
                     ),
                   )
-                : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _selectedSymbols.length,
-                    itemBuilder: (context, index) {
-                      final symbol = _selectedSymbols[index];
-                      final displayText = symbol.title ?? '';
-                      
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Chip(
-                          label: Text(displayText),
-                          deleteIcon: const Icon(
-                            Icons.close,
-                            size: 18,
-                          ),
-                          onDeleted: () => _removeSymbol(index),
-                          backgroundColor: const Color(0xFFE1BEE7),
-                          labelStyle: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF424242),
-                          ),
-                        ),
-                      );
-                    },
+                : const Icon(
+                    Icons.chat_bubble_outline,
+                    size: 32,
+                    color: Color(0xFF9C27B0),
                   ),
+          ),
+          const SizedBox(height: 8),
+          // Symbol Text
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              displayText,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF424242),
+              ),
+            ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+
+// Update method _speak juga untuk menggunakan targetWord
+Future<void> _speak() async {
+  if (_selectedSymbols.isEmpty) return;
+  
+  final sentence = _selectedSymbols
+      .map((symbol) => symbol.targetWord) // 👈 Gunakan targetWord
+      .join(' ');
+  
+  await _flutterTts.speak(sentence);
+}
+
+// Update sentence builder untuk menampilkan targetWord
+Widget _buildSentenceBuilder() {
+  return Container(
+    height: 120,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 8,
+          offset: const Offset(0, -2),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.message,
+                color: Color(0xFF9C27B0),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Kalimat Saya:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF424242),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_selectedSymbols.length} kata',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _selectedSymbols.isEmpty
+              ? Center(
+                  child: Text(
+                    'Pilih symbol untuk membuat kalimat',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: _selectedSymbols.length,
+                  itemBuilder: (context, index) {
+                    final symbol = _selectedSymbols[index];
+                    final displayText = symbol.targetWord; // 👈 Gunakan targetWord
+                    
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Chip(
+                        label: Text(displayText),
+                        deleteIcon: const Icon(
+                          Icons.close,
+                          size: 18,
+                        ),
+                        onDeleted: () => _removeSymbol(index),
+                        backgroundColor: const Color(0xFFE1BEE7),
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF424242),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ...existing code...
+
 
   Widget _buildEmptyState() {
     return Center(

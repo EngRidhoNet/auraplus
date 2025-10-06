@@ -1,4 +1,5 @@
 import 'package:aura_plus/features/therapy/domain/models/therapy_session.dart';
+import 'package:aura_plus/features/therapy/presentation/screens/aac_therapy_screen.dart';
 import 'package:aura_plus/features/therapy/presentation/screens/therapy_categories_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -168,6 +169,7 @@ class DashboardScreen extends ConsumerWidget {
                 mainAxisSpacing: 16,
                 children: [
                   _buildFeatureCard(
+                    context,
                     'Vocabulary Therapy',
                     Icons.school,
                     Colors.green,
@@ -184,6 +186,7 @@ class DashboardScreen extends ConsumerWidget {
                     },
                   ),
                   _buildFeatureCard(
+                    context,
                     'Verbal Therapy',
                     Icons.record_voice_over,
                     Colors.orange,
@@ -200,29 +203,84 @@ class DashboardScreen extends ConsumerWidget {
                     },
                   ),
                   _buildFeatureCard(
+                    context,
                     'AAC Tools',
                     Icons.touch_app,
                     Colors.purple,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const TherapyCategoriesScreen(
-                            sessionType: SessionType.aac,
-                            title: 'AAC Communication',
+                    () async {
+                      // Get AAC category dari Supabase
+                      final supabase = Supabase.instance.client;
+
+                      try {
+                        // Show loading
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const Center(
+                            child: CircularProgressIndicator(),
                           ),
-                        ),
-                      );
+                        );
+
+                        final response = await supabase
+                            .from('therapy_categories')
+                            .select()
+                            .eq('name', 'AAC Dasar')
+                            .single();
+
+                        // Close loading
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
+
+                        if (response != null && context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AACTherapyScreen(
+                                categoryId: response['id'] as String,
+                                categoryName: response['name'] as String,
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        // Close loading if still showing
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
+
+                        AppLogger.error('Error loading AAC category: $e');
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Error: AAC category not found. Please insert AAC data first.',
+                              ),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 3),
+                              action: SnackBarAction(
+                                label: 'OK',
+                                textColor: Colors.white,
+                                onPressed: () {},
+                              ),
+                            ),
+                          );
+                        }
+                      }
                     },
                   ),
                   _buildFeatureCard(
+                    context,
                     'Progress Report',
                     Icons.analytics,
                     Colors.blue,
                     () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Progress Report coming soon!')),
+                          content: Text('Progress Report coming soon!'),
+                          duration: Duration(seconds: 2),
+                        ),
                       );
                     },
                   ),
@@ -236,7 +294,12 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildFeatureCard(
-      String title, IconData icon, Color color, VoidCallback onTap) {
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
