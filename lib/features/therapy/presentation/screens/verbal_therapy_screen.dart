@@ -13,7 +13,7 @@ class VerbalTherapyScreen extends StatefulWidget {
   const VerbalTherapyScreen({
     super.key,
     required this.content,
-    this.onComplete,
+    this.onComplete, required String categoryName,
   });
 
   @override

@@ -814,7 +814,7 @@ class _TherapyCategoriesScreenState
                 ),
               );
             }
-          },
+          }, categoryName: '',
         );
         break;
       case SessionType.aac:
