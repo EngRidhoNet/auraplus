@@ -333,184 +333,190 @@ class _VocabularyTherapyScreenState
     );
   }
 
-  Widget _buildModernWordCard(TherapyContent content, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+// ...existing code...
+
+Widget _buildModernWordCard(TherapyContent content, bool isDark) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20), // ✅ Reduced from 24 to 20
+    decoration: BoxDecoration(
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(
+        color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: isDark
+              ? Colors.black.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.1),
+          blurRadius: 30,
+          offset: const Offset(0, 10),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withOpacity(0.3)
-                : Colors.grey.withOpacity(0.1),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Icon Container
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  _getCategoryColor().withOpacity(0.2),
-                  _getCategoryColor().withOpacity(0.1),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: _getCategoryColor().withOpacity(0.3),
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              _getContentIcon(content.targetWord),
-              size: 60,
-              color: _getCategoryColor(),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Word
-          Text(
-            content.targetWord,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-              letterSpacing: 1,
-            ),
-          ),
-
-          if (content.description != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF2D2D2D)
-                    : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                content.description!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 24),
-
-          // AR Button
-          _buildARButton(content, isDark),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildARButton(TherapyContent content, bool isDark) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _getCategoryColor(),
-            _getCategoryColor().withOpacity(0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: _getCategoryColor().withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ARVocabularyScreen(
-                  content: content,
-                  onComplete: () {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Row(
-                            children: [
-                              Icon(Icons.check_circle, color: Colors.white),
-                              SizedBox(width: 12),
-                              Text('AR session completed!'),
-                            ],
-                          ),
-                          backgroundColor: Colors.green,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: const Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.view_in_ar_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                SizedBox(width: 12),
-                Text(
-                  'Experience in AR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+      ],
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min, // ✅ Added to prevent overflow
+      children: [
+        // Icon Container
+        Container(
+          width: 100, // ✅ Reduced from 120 to 100
+          height: 100, // ✅ Reduced from 120 to 100
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                _getCategoryColor().withOpacity(0.2),
+                _getCategoryColor().withOpacity(0.1),
               ],
             ),
+            borderRadius: BorderRadius.circular(20), // ✅ Reduced from 24 to 20
+            border: Border.all(
+              color: _getCategoryColor().withOpacity(0.3),
+              width: 2,
+            ),
+          ),
+          child: Icon(
+            _getContentIcon(content.targetWord),
+            size: 50, // ✅ Reduced from 60 to 50
+            color: _getCategoryColor(),
+          ),
+        ),
+
+        const SizedBox(height: 16), // ✅ Reduced from 20 to 16
+
+        // Word
+        Text(
+          content.targetWord,
+          style: TextStyle(
+            fontSize: 22, // ✅ Reduced from 24 to 22
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+            letterSpacing: 1,
+          ),
+        ),
+
+        if (content.description != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12), // ✅ Reduced from 16 to 12
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF2D2D2D)
+                  : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12), // ✅ Reduced from 16 to 12
+            ),
+            child: Text(
+              content.description!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13, // ✅ Reduced from 14 to 13
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                height: 1.4, // ✅ Reduced from 1.5 to 1.4
+              ),
+              maxLines: 2, // ✅ Added max lines
+              overflow: TextOverflow.ellipsis, // ✅ Added overflow handling
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 16), // ✅ Reduced from 24 to 16
+
+        // AR Button
+        _buildARButton(content, isDark),
+      ],
+    ),
+  );
+}
+
+Widget _buildARButton(TherapyContent content, bool isDark) {
+  return Container(
+    width: double.infinity,
+    height: 52, // ✅ Reduced from 56 to 52
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          _getCategoryColor(),
+          _getCategoryColor().withOpacity(0.8),
+        ],
+      ),
+      borderRadius: BorderRadius.circular(14), // ✅ Reduced from 16 to 14
+      boxShadow: [
+        BoxShadow(
+          color: _getCategoryColor().withOpacity(0.4),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ARVocabularyScreen(
+                content: content,
+                onComplete: () {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.white),
+                            SizedBox(width: 12),
+                            Text('AR session completed!'),
+                          ],
+                        ),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: const Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.view_in_ar_rounded,
+                color: Colors.white,
+                size: 22, // ✅ Reduced from 24 to 22
+              ),
+              SizedBox(width: 10), // ✅ Reduced from 12 to 10
+              Text(
+                'Experience in AR',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15, // ✅ Reduced from 16 to 15
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              SizedBox(width: 6), // ✅ Reduced from 8 to 6
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 18, // ✅ Reduced from 20 to 18
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildModernActionButtons(List<TherapyContent> content, bool isDark) {
     return Row(

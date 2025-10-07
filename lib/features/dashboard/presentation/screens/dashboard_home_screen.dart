@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../widgets/dashboard_header.dart';
-import '../widgets/feature_card.dart';
+import 'dart:ui';
 import 'progress_report_screen.dart';
 
-// ✅ CORRECT THERAPY SCREEN IMPORTS
+// ✅ THERAPY SCREEN IMPORTS
 import '../../../therapy/presentation/screens/therapy_categories_screen.dart';
 import '../../../therapy/presentation/screens/verbal_therapy_screen.dart';
 import '../../../therapy/presentation/screens/aac_therapy_screen.dart';
-import 'package:aura_plus/features/therapy/domain/models/therapy_content.dart';
+import '../../../therapy/domain/models/therapy_content.dart';
 
-/// Dashboard Home Screen - Main home view with feature cards
+/// 🎨 Dashboard Home Screen - Modern Layout (Consistent Colors with Therapy List)
 class DashboardHomeScreen extends ConsumerWidget {
   const DashboardHomeScreen({super.key});
 
@@ -19,210 +18,627 @@ class DashboardHomeScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      // ✅ SAME BACKGROUND AS THERAPY LIST
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Header with user greeting & stats
-          const SliverToBoxAdapter(
-            child: DashboardHeader(),
-          ),
-
-          // ✅ SEARCH BAR - INLINE (No separate widget file needed)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark 
-                      ? const Color(0xFF1E1E1E) 
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark 
-                        ? Colors.grey.shade800 
-                        : Colors.grey.shade200,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+      body: SafeArea(
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // 👋 HEADER - Hello, Paul
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Greeting
+                    Row(
+                      children: [
+                        Text(
+                          'Hello, Paul',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          '👋',
+                          style: TextStyle(fontSize: 28),
+                        ),
+                      ],
+                    ),
+                    
+                    // Notification Bell - ✅ WITH GREEN ACCENT
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF66BB6A), Color(0xFF43A047)],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF66BB6A).withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          const Center(
+                            child: Icon(
+                              Icons.notifications_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          // Notification dot
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search therapies...',
-                    hintStyle: TextStyle(
-                      color: isDark 
-                          ? Colors.grey.shade600 
-                          : Colors.grey.shade400,
+              ),
+            ),
+
+            // 🔍 SEARCH BAR - ✅ SAME STYLE AS THERAPY LIST
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    // ✅ SAME COLORS AS THERAPY LIST
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                     ),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: isDark 
-                          ? Colors.grey.shade600 
-                          : Colors.grey.shade400,
-                    ),
-                    suffixIcon: Icon(
-                      Icons.tune_rounded,
-                      color: isDark 
-                          ? Colors.grey.shade600 
-                          : Colors.grey.shade400,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black87,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search_rounded,
+                        color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Search therapies...',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ),
 
-          // Section Title
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF66BB6A), Color(0xFF43A047)],
+            // 🎴 FEATURED THERAPY CARDS - Horizontal Scroll
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 20, bottom: 8),
+                child: SizedBox(
+                  height: 200,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      // Card 1 - Vocabulary - ✅ GREEN GRADIENT
+                      _buildFeaturedCard(
+                        context,
+                        'Vocabulary\nTherapy',
+                        '48 Activities',
+                        Icons.school_rounded,
+                        const Color(0xFF66BB6A), // ✅ GREEN
+                        isDark,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TherapyCategoriesScreen(),
+                            ),
+                          );
+                        },
                       ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.star_rounded,
-                      size: 20,
-                      color: Colors.white,
-                    ),
+                      
+                      const SizedBox(width: 16),
+                      
+                      // Card 2 - Verbal - ✅ ORANGE
+                      _buildFeaturedCard(
+                        context,
+                        'Verbal\nTherapy',
+                        '32 Exercises',
+                        Icons.record_voice_over_rounded,
+                        const Color(0xFFFF9800), // ✅ ORANGE
+                        isDark,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => VerbalTherapyScreen(
+                                categoryName: 'Verbal Therapy',
+                                content: TherapyContent(
+                                  id: 'verbal_quick_start',
+                                  categoryId: 'verbal',
+                                  title: 'Quick Start Verbal Practice',
+                                  description: 'Begin your verbal therapy journey',
+                                  contentType: ContentType.word,
+                                  difficultyLevel: 1,
+                                  targetWord: 'Welcome',
+                                  pronunciation: '/ˈwelkəm/',
+                                  imageUrl: null,
+                                  audioUrl: null,
+                                  model3dUrl: null,
+                                  arPlacementData: null,
+                                  isActive: true,
+                                  createdAt: DateTime.now(),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Therapy Programs',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
 
-          // Feature Cards Grid (2 columns)
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.85,
-              ),
-              delegate: SliverChildListDelegate([
-                // ✅ VOCABULARY CARD
-                FeatureCard(
-                  title: 'Vocabulary',
-                  description: 'Learn words with AR',
-                  icon: Icons.school_rounded,
-                  color: const Color(0xFF66BB6A),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TherapyCategoriesScreen(),
+            // Pagination Dots
+            SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          // ✅ GREEN ACTIVE DOT
+                          color: const Color(0xFF66BB6A),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    );
-                  },
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+            ),
 
-                // ✅ VERBAL CARD - FIXED
-                FeatureCard(
-                  title: 'Verbal',
-                  description: 'Practice speaking',
-                  icon: Icons.record_voice_over_rounded,
-                  color: const Color(0xFFFF9800),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => VerbalTherapyScreen(
-                          categoryName: 'Verbal Therapy',
-                          content: TherapyContent(
-                            id: 'verbal_quick_start',
-                            categoryId: 'verbal',
-                            title: 'Quick Start Verbal Practice',
-                            description: 'Begin your verbal therapy journey with basic pronunciation exercises',
-                            contentType: ContentType.word,
-                            difficultyLevel: 1,
-                            targetWord: 'Welcome',
-                            pronunciation: '/ˈwelkəm/',
-                            imageUrl: null,
-                            audioUrl: null,
-                            model3dUrl: null,
-                            arPlacementData: null,
-                            isActive: true,
-                            createdAt: DateTime.now(),
+            // 📌 SECTION HEADER - Special for you
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Special for you',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'See all',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                           ),
                         ),
-                      ),
-                    );
-                  },
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+              ),
+            ),
 
-                // ✅ AAC CARD
-                FeatureCard(
-                  title: 'AAC Tools',
-                  description: 'Communication aids',
-                  icon: Icons.touch_app_rounded,
-                  color: const Color(0xFF9C27B0),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AACTherapyScreen(
-                          categoryId: 'aac',
-                          categoryName: 'AAC Communication',
+            // 📋 THERAPY LIST - Vertical Cards - ✅ SAME STYLE AS THERAPY LIST
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Card 1 - AAC Communication
+                  _buildTherapyListCard(
+                    context,
+                    'AAC Communication',
+                    'Symbol-based communication tools',
+                    '120 Symbols',
+                    Icons.touch_app_rounded,
+                    const Color(0xFF9C27B0), // ✅ PURPLE
+                    isDark,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AACTherapyScreen(
+                            categoryId: 'aac',
+                            categoryName: 'AAC Communication',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Card 2 - Progress Report
+                  _buildTherapyListCard(
+                    context,
+                    'Progress Report',
+                    'Track your therapy progress and achievements',
+                    'View Stats',
+                    Icons.analytics_rounded,
+                    const Color(0xFF4A90E2), // ✅ BLUE
+                    isDark,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProgressReportScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Card 3 - Daily Goals
+                  _buildTherapyListCard(
+                    context,
+                    'Daily Goals',
+                    'Complete your daily therapy tasks',
+                    '5 Tasks',
+                    Icons.emoji_events_rounded,
+                    const Color(0xFFFFD700), // ✅ GOLD
+                    isDark,
+                    () {},
+                  ),
+                  
+                  const SizedBox(height: 100),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🎴 FEATURED CARD - ✅ REDESIGNED WITH CONSISTENT COLORS
+  Widget _buildFeaturedCard(
+    BuildContext context,
+    String title,
+    String duration,
+    IconData icon,
+    Color color,
+    bool isDark,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.6,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          // ✅ SAME BACKGROUND AS THERAPY LIST
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Background gradient circle
+            Positioned(
+              top: -40,
+              right: -40,
+              child: Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      color.withOpacity(0.15),
+                      color.withOpacity(0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Title
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                    height: 1.2,
+                  ),
+                ),
+                
+                // Bottom row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Duration badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 14,
+                            color: color,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            duration,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Icon button
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            color.withOpacity(0.2),
+                            color.withOpacity(0.1),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: color.withOpacity(0.3),
+                          width: 2,
                         ),
                       ),
-                    );
-                  },
-                ),
-
-                // ✅ PROGRESS CARD
-                FeatureCard(
-                  title: 'Progress',
-                  description: 'Track your growth',
-                  icon: Icons.analytics_rounded,
-                  color: const Color(0xFF4A90E2),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProgressReportScreen(),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: 28,
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
-              ]),
+              ],
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // Bottom spacing for bottom nav bar
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
+  // 📋 THERAPY LIST CARD - ✅ EXACT SAME AS THERAPY_LIST_SCREEN
+  Widget _buildTherapyListCard(
+    BuildContext context,
+    String title,
+    String description,
+    String badge,
+    IconData icon,
+    Color color,
+    bool isDark,
+    VoidCallback onTap,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -40,
+                top: -40,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        color.withOpacity(0.15),
+                        color.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            color.withOpacity(0.2),
+                            color.withOpacity(0.1),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: color.withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(icon, size: 36, color: color),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                              height: 1.4,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 14,
+                                  color: color,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  badge,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 24,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
