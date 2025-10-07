@@ -80,7 +80,9 @@ class _VocabularyTherapyScreenState
         data: (content) => content.isEmpty
             ? _buildEmptyContent()
             : _buildTherapyContent(content),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: CircularProgressIndicator(),
+        ),
         error: (error, stack) => _buildErrorContent(error.toString()),
       ),
     );
@@ -102,64 +104,79 @@ class _VocabularyTherapyScreenState
           valueColor: AlwaysStoppedAnimation<Color>(_getCategoryColor()),
         ),
 
-        // Content
+        // Content - Scrollable with proper constraints
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                // Header info
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: _getCategoryColor().withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
                   ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Learn this word:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        currentContent.targetWord.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: _getCategoryColor(),
-                        ),
-                      ),
-                      if (currentContent.pronunciation != null)
-                        Text(
-                          currentContent.pronunciation!,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.grey.shade600,
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        // Header info - Compact
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: _getCategoryColor().withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Learn this word:',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                currentContent.targetWord.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getCategoryColor(),
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              if (currentContent.pronunciation != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  currentContent.pronunciation!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                    ],
+
+                        const SizedBox(height: 16),
+
+                        // Word Card - Optimized with constraints
+                        _buildWordCard(currentContent),
+
+                        const SizedBox(height: 16),
+
+                        // Action Buttons
+                        _buildActionButtons(content),
+
+                        const SizedBox(height: 8),
+                      ],
+                    ),
                   ),
                 ),
-
-                const SizedBox(height: 32),
-
-                // Word Card
-                Expanded(
-                  child: _buildWordCard(currentContent),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Action Buttons
-                _buildActionButtons(content),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -169,10 +186,16 @@ class _VocabularyTherapyScreenState
   Widget _buildWordCard(TherapyContent content) {
     return Card(
       elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(32),
+        constraints: const BoxConstraints(
+          maxHeight: 320, // 👈 KEY FIX: Limit max height
+        ),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
@@ -185,76 +208,122 @@ class _VocabularyTherapyScreenState
           ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Image placeholder (AR will replace this)
+            // Icon
             Container(
-              width: 150,
-              height: 150,
+              width: 90,
+              height: 90,
               decoration: BoxDecoration(
                 color: _getCategoryColor().withOpacity(0.2),
-                borderRadius: BorderRadius.circular(75),
+                borderRadius: BorderRadius.circular(45),
+                boxShadow: [
+                  BoxShadow(
+                    color: _getCategoryColor().withOpacity(0.3),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
               child: Icon(
                 _getContentIcon(content.targetWord),
-                size: 80,
+                size: 45,
                 color: _getCategoryColor(),
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 14),
 
             // Word
             Text(
               content.targetWord,
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey.shade800,
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-            // Description
+            // Description - with flexible constraint
             if (content.description != null)
-              Text(
-                content.description!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    content.description!,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      height: 1.4,
+                    ),
+                  ),
                 ),
               ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
-            // AR Button (placeholder)
-            // Replace AR Button dengan ini:
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ARVocabularyScreen(
-                      content: content,
-                      onComplete: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('AR session completed!')),
-                        );
-                      },
+            // AR Button - CLICKABLE!
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ARVocabularyScreen(
+                        content: content,
+                        onComplete: () {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text('AR session completed!'),
+                                  ],
+                                ),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
                     ),
+                  );
+                },
+                icon: const Icon(Icons.view_in_ar, size: 20),
+                label: const Text(
+                  'View in AR',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
-                );
-              },
-              icon: const Icon(Icons.view_in_ar),
-              label: const Text('View in AR'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _getCategoryColor(),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _getCategoryColor(),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  elevation: 5,
+                  shadowColor: _getCategoryColor().withOpacity(0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
               ),
             ),
           ],
@@ -264,38 +333,61 @@ class _VocabularyTherapyScreenState
   }
 
   Widget _buildActionButtons(List<TherapyContent> content) {
-    return Row(
-      children: [
-        // I Got It Wrong
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _handleAnswer(false, content),
-            icon: const Icon(Icons.close),
-            label: const Text('I Got It Wrong'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red,
-              side: const BorderSide(color: Colors.red),
-              padding: const EdgeInsets.symmetric(vertical: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          // I Got It Wrong
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _handleAnswer(false, content),
+              icon: const Icon(Icons.close, size: 20),
+              label: const Text(
+                'I Got It Wrong',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red, width: 2),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
             ),
           ),
-        ),
 
-        const SizedBox(width: 16),
+          const SizedBox(width: 12),
 
-        // I Got It Right
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _handleAnswer(true, content),
-            icon: const Icon(Icons.check),
-            label: const Text('I Got It Right'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          // I Got It Right
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => _handleAnswer(true, content),
+              icon: const Icon(Icons.check, size: 20),
+              label: const Text(
+                'I Got It Right',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 5,
+                shadowColor: Colors.green.withOpacity(0.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -307,15 +399,22 @@ class _VocabularyTherapyScreenState
         : 0;
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.celebration,
-              size: 80,
-              color: _getCategoryColor(),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _getCategoryColor().withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.celebration,
+                size: 80,
+                color: _getCategoryColor(),
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -326,25 +425,61 @@ class _VocabularyTherapyScreenState
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 8),
+
+            Text(
+              'Great job! Keep practicing!',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
             ),
 
             const SizedBox(height: 32),
 
-            // Stats
+            // Stats Card
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: _getCategoryColor().withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _getCategoryColor().withOpacity(0.3),
+                  width: 2,
+                ),
               ),
               child: Column(
                 children: [
-                  _buildStatRow('Accuracy', '${accuracy.toStringAsFixed(1)}%'),
-                  const SizedBox(height: 12),
+                  Text(
+                    'Your Results',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: _getCategoryColor(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   _buildStatRow(
-                      'Correct Answers', '$correctAnswers/$totalAnswers'),
-                  const SizedBox(height: 12),
-                  _buildStatRow('Duration', '${duration}s'),
+                    Icons.percent,
+                    'Accuracy',
+                    '${accuracy.toStringAsFixed(1)}%',
+                  ),
+                  const Divider(height: 24),
+                  _buildStatRow(
+                    Icons.check_circle,
+                    'Correct Answers',
+                    '$correctAnswers/$totalAnswers',
+                  ),
+                  const Divider(height: 24),
+                  _buildStatRow(
+                    Icons.timer,
+                    'Duration',
+                    _formatDuration(duration),
+                  ),
                 ],
               ),
             ),
@@ -356,7 +491,7 @@ class _VocabularyTherapyScreenState
               children: [
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       setState(() {
                         currentIndex = 0;
@@ -366,23 +501,48 @@ class _VocabularyTherapyScreenState
                       });
                       _startTherapySession();
                     },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text(
+                      'Try Again',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _getCategoryColor(),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      elevation: 5,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
-                    child: const Text('Try Again'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton(
+                  child: OutlinedButton.icon(
                     onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text(
+                      'Back to Categories',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(
+                        color: _getCategoryColor(),
+                        width: 2,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
-                    child: const Text('Back to Categories'),
                   ),
                 ),
               ],
@@ -393,18 +553,35 @@ class _VocabularyTherapyScreenState
     );
   }
 
-  Widget _buildStatRow(String label, String value) {
+  Widget _buildStatRow(IconData icon, String label, String value) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _getCategoryColor().withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 24,
+            color: _getCategoryColor(),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: _getCategoryColor(),
           ),
@@ -414,15 +591,31 @@ class _VocabularyTherapyScreenState
   }
 
   Widget _buildEmptyContent() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.library_books, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
+          Icon(
+            Icons.library_books,
+            size: 80,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
           Text(
             'No content available',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please check back later',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
           ),
         ],
       ),
@@ -431,17 +624,48 @@ class _VocabularyTherapyScreenState
 
   Widget _buildErrorContent(String error) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error, size: 64, color: Colors.red),
-          const SizedBox(height: 16),
-          Text(
-            'Error: $error',
-            style: const TextStyle(fontSize: 16, color: Colors.red),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Oops! Something went wrong',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.red,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -452,6 +676,28 @@ class _VocabularyTherapyScreenState
       if (isCorrect) correctAnswers++;
       currentIndex++;
     });
+
+    // Show feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isCorrect ? Icons.check_circle : Icons.cancel,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Text(isCorrect ? 'Correct! Well done!' : 'Keep practicing!'),
+          ],
+        ),
+        backgroundColor: isCorrect ? Colors.green : Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
 
     // Record progress
     final currentSession = ref.read(currentSessionProvider).value;
@@ -492,27 +738,53 @@ class _VocabularyTherapyScreenState
     }
   }
 
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${remainingSeconds}s';
+    }
+    return '${seconds}s';
+  }
+
   Color _getCategoryColor() {
     try {
-      return Color(int.parse(widget.category.color.substring(1), radix: 16) +
-          0xFF000000);
+      return Color(
+        int.parse(widget.category.color.substring(1), radix: 16) + 0xFF000000,
+      );
     } catch (e) {
       return Colors.green;
     }
   }
 
   IconData _getContentIcon(String word) {
-    switch (word.toLowerCase()) {
-      case 'cat':
-        return Icons.pets;
-      case 'dog':
-        return Icons.pets;
-      case 'red':
-        return Icons.palette;
-      case 'circle':
-        return Icons.circle;
-      default:
-        return Icons.book;
-    }
+    final iconMap = {
+      'cat': Icons.pets,
+      'kucing': Icons.pets,
+      'dog': Icons.pets,
+      'anjing': Icons.pets,
+      'apple': Icons.apple,
+      'apel': Icons.apple,
+      'red': Icons.palette,
+      'merah': Icons.palette,
+      'blue': Icons.palette,
+      'biru': Icons.palette,
+      'circle': Icons.circle,
+      'lingkaran': Icons.circle,
+      'square': Icons.square,
+      'kotak': Icons.square,
+      'ball': Icons.sports_soccer,
+      'bola': Icons.sports_soccer,
+      'car': Icons.directions_car,
+      'mobil': Icons.directions_car,
+      'house': Icons.home,
+      'rumah': Icons.home,
+      'tree': Icons.park,
+      'pohon': Icons.park,
+      'book': Icons.book,
+      'buku': Icons.book,
+    };
+
+    return iconMap[word.toLowerCase()] ?? Icons.category;
   }
 }
