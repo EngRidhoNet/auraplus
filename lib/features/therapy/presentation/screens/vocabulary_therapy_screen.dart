@@ -21,18 +21,55 @@ class VocabularyTherapyScreen extends ConsumerStatefulWidget {
 }
 
 class _VocabularyTherapyScreenState
-    extends ConsumerState<VocabularyTherapyScreen> {
+    extends ConsumerState<VocabularyTherapyScreen>
+    with SingleTickerProviderStateMixin {
   int currentIndex = 0;
   int correctAnswers = 0;
   int totalAnswers = 0;
   DateTime? sessionStartTime;
   String? currentSessionId;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     sessionStartTime = DateTime.now();
     _startTherapySession();
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _startTherapySession() async {
@@ -49,572 +86,725 @@ class _VocabularyTherapyScreenState
   @override
   Widget build(BuildContext context) {
     final contentAsync = ref.watch(therapyContentProvider(widget.category.id));
-    final currentSession = ref.watch(currentSessionProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.category.name),
-        backgroundColor: _getCategoryColor(),
-        foregroundColor: Colors.white,
-        actions: [
-          // Progress indicator
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Center(
-              child: contentAsync.when(
-                data: (content) => Text(
-                  '${currentIndex + 1}/${content.length}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                loading: () => const SizedBox(),
-                error: (_, __) => const SizedBox(),
-              ),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
+      extendBodyBehindAppBar: false,
+      appBar: _buildModernAppBar(contentAsync, isDark),
       body: contentAsync.when(
         data: (content) => content.isEmpty
-            ? _buildEmptyContent()
-            : _buildTherapyContent(content),
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (error, stack) => _buildErrorContent(error.toString()),
+            ? _buildEmptyContent(isDark)
+            : _buildTherapyContent(content, isDark),
+        loading: () => _buildLoadingState(),
+        error: (error, stack) => _buildErrorContent(error.toString(), isDark),
       ),
     );
   }
 
-  Widget _buildTherapyContent(List<TherapyContent> content) {
+  // ============================================================================
+  // APP BAR
+  // ============================================================================
+
+  PreferredSizeWidget _buildModernAppBar(
+    AsyncValue<List<TherapyContent>> contentAsync,
+    bool isDark,
+  ) {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      foregroundColor: isDark ? Colors.white : Colors.black87,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2D2D2D) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.category.name,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          contentAsync.when(
+            data: (content) => Text(
+              '${currentIndex + 1} of ${content.length} words',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: _getCategoryColor().withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.star_rounded,
+                size: 16,
+                color: _getCategoryColor(),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '$correctAnswers/$totalAnswers',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: _getCategoryColor(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================================
+  // MAIN CONTENT
+  // ============================================================================
+
+  Widget _buildTherapyContent(List<TherapyContent> content, bool isDark) {
     if (currentIndex >= content.length) {
-      return _buildSessionComplete();
+      return _buildSessionComplete(isDark);
     }
 
     final currentContent = content[currentIndex];
 
     return Column(
       children: [
-        // Progress Bar
-        LinearProgressIndicator(
-          value: (currentIndex + 1) / content.length,
-          backgroundColor: Colors.grey.shade300,
-          valueColor: AlwaysStoppedAnimation<Color>(_getCategoryColor()),
-        ),
+        // Modern Progress Bar
+        _buildProgressBar(content.length, isDark),
 
-        // Content - Scrollable with proper constraints
+        // Content
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      children: [
-                        // Header info - Compact
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: _getCategoryColor().withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Learn this word:',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                currentContent.targetWord.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: _getCategoryColor(),
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              if (currentContent.pronunciation != null) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  currentContent.pronunciation!,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // Word Header Card
+                    _buildWordHeaderCard(currentContent, isDark),
 
-                        const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                        // Word Card - Optimized with constraints
-                        _buildWordCard(currentContent),
+                    // Main Word Card
+                    _buildModernWordCard(currentContent, isDark),
 
-                        const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                        // Action Buttons
-                        _buildActionButtons(content),
-
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  ),
+                    // Action Buttons
+                    _buildModernActionButtons(content, isDark),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildWordCard(TherapyContent content) {
-    return Card(
-      elevation: 8,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+  Widget _buildProgressBar(int totalItems, bool isDark) {
+    return Container(
+      height: 6,
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(3),
+        color: isDark ? const Color(0xFF2D2D2D) : Colors.grey.shade200,
       ),
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(
-          maxHeight: 320, // 👈 KEY FIX: Limit max height
-        ),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              _getCategoryColor().withOpacity(0.1),
-              _getCategoryColor().withOpacity(0.05),
-            ],
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Icon
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                color: _getCategoryColor().withOpacity(0.2),
-                borderRadius: BorderRadius.circular(45),
-                boxShadow: [
-                  BoxShadow(
-                    color: _getCategoryColor().withOpacity(0.3),
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Icon(
-                _getContentIcon(content.targetWord),
-                size: 45,
-                color: _getCategoryColor(),
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // Word
-            Text(
-              content.targetWord,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Description - with flexible constraint
-            if (content.description != null)
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    content.description!,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 14),
-
-            // AR Button - CLICKABLE!
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ARVocabularyScreen(
-                        content: content,
-                        onComplete: () {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.check_circle,
-                                      color: Colors.white,
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text('AR session completed!'),
-                                  ],
-                                ),
-                                backgroundColor: Colors.green,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.view_in_ar, size: 20),
-                label: const Text(
-                  'View in AR',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _getCategoryColor(),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  elevation: 5,
-                  shadowColor: _getCategoryColor().withOpacity(0.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-              ),
-            ),
-          ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: LinearProgressIndicator(
+          value: (currentIndex + 1) / totalItems,
+          backgroundColor: Colors.transparent,
+          valueColor: AlwaysStoppedAnimation<Color>(_getCategoryColor()),
         ),
       ),
     );
   }
 
-  Widget _buildActionButtons(List<TherapyContent> content) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
+  Widget _buildWordHeaderCard(TherapyContent content, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _getCategoryColor(),
+            _getCategoryColor().withOpacity(0.8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _getCategoryColor().withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
         children: [
-          // I Got It Wrong
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _handleAnswer(false, content),
-              icon: const Icon(Icons.close, size: 20),
-              label: const Text(
-                'I Got It Wrong',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.school_rounded,
+                  size: 20,
+                  color: Colors.white,
                 ),
               ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red, width: 2),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+              const SizedBox(width: 8),
+              const Text(
+                'Learn this word',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            content.targetWord.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 2,
+            ),
+          ),
+          if (content.pronunciation != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                content.pronunciation!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.white,
                 ),
               ),
             ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // I Got It Right
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () => _handleAnswer(true, content),
-              icon: const Icon(Icons.check, size: 20),
-              label: const Text(
-                'I Got It Right',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                elevation: 5,
-                shadowColor: Colors.green.withOpacity(0.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSessionComplete() {
+  Widget _buildModernWordCard(TherapyContent content, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withOpacity(0.3)
+                : Colors.grey.withOpacity(0.1),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Icon Container
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _getCategoryColor().withOpacity(0.2),
+                  _getCategoryColor().withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: _getCategoryColor().withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              _getContentIcon(content.targetWord),
+              size: 60,
+              color: _getCategoryColor(),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Word
+          Text(
+            content.targetWord,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+              letterSpacing: 1,
+            ),
+          ),
+
+          if (content.description != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF2D2D2D)
+                    : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                content.description!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          // AR Button
+          _buildARButton(content, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildARButton(TherapyContent content, bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _getCategoryColor(),
+            _getCategoryColor().withOpacity(0.8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _getCategoryColor().withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ARVocabularyScreen(
+                  content: content,
+                  onComplete: () {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.white),
+                              SizedBox(width: 12),
+                              Text('AR session completed!'),
+                            ],
+                          ),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: const Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.view_in_ar_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+                SizedBox(width: 12),
+                Text(
+                  'Experience in AR',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernActionButtons(List<TherapyContent> content, bool isDark) {
+    return Row(
+      children: [
+        // Wrong Answer Button
+        Expanded(
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.red.shade400,
+                width: 2,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _handleAnswer(false, content),
+                borderRadius: BorderRadius.circular(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.close_rounded,
+                      color: Colors.red.shade400,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Wrong',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red.shade400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 16),
+
+        // Correct Answer Button
+        Expanded(
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF66BB6A),
+                  Color(0xFF43A047),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF66BB6A).withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _handleAnswer(true, content),
+                borderRadius: BorderRadius.circular(16),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Correct',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================================
+  // SESSION COMPLETE
+  // ============================================================================
+
+  Widget _buildSessionComplete(bool isDark) {
     final accuracy =
         totalAnswers > 0 ? (correctAnswers / totalAnswers * 100) : 0.0;
     final duration = sessionStartTime != null
         ? DateTime.now().difference(sessionStartTime!).inSeconds
         : 0;
 
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: _getCategoryColor().withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.celebration,
-                size: 80,
-                color: _getCategoryColor(),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              'Session Complete!',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              'Great job! Keep practicing!',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Stats Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: _getCategoryColor().withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _getCategoryColor().withOpacity(0.3),
-                  width: 2,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'Your Results',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _getCategoryColor(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildStatRow(
-                    Icons.percent,
-                    'Accuracy',
-                    '${accuracy.toStringAsFixed(1)}%',
-                  ),
-                  const Divider(height: 24),
-                  _buildStatRow(
-                    Icons.check_circle,
-                    'Correct Answers',
-                    '$correctAnswers/$totalAnswers',
-                  ),
-                  const Divider(height: 24),
-                  _buildStatRow(
-                    Icons.timer,
-                    'Duration',
-                    _formatDuration(duration),
-                  ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isDark
+              ? [
+                  const Color(0xFF1E1E1E),
+                  const Color(0xFF121212),
+                ]
+              : [
+                  Colors.white,
+                  const Color(0xFFF8F9FA),
                 ],
+        ),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Success Icon
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _getCategoryColor(),
+                      _getCategoryColor().withOpacity(0.7),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getCategoryColor().withOpacity(0.4),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.celebration_rounded,
+                  size: 60,
+                  color: Colors.white,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 32),
+              const SizedBox(height: 32),
 
-            // Action Buttons
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        currentIndex = 0;
-                        correctAnswers = 0;
-                        totalAnswers = 0;
-                        sessionStartTime = DateTime.now();
-                      });
-                      _startTherapySession();
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text(
-                      'Try Again',
+              // Title
+              Text(
+                'Session Complete!',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                  letterSpacing: -0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                'Great job! Keep practicing!',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Stats Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withOpacity(0.3)
+                          : Colors.grey.withOpacity(0.1),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Your Results',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _getCategoryColor(),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 5,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text(
-                      'Back to Categories',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(
                         color: _getCategoryColor(),
-                        width: 2,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 24),
+                    _buildModernStatRow(
+                      Icons.percent_rounded,
+                      'Accuracy',
+                      '${accuracy.toStringAsFixed(1)}%',
+                      isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildModernStatRow(
+                      Icons.check_circle_rounded,
+                      'Correct Answers',
+                      '$correctAnswers/$totalAnswers',
+                      isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildModernStatRow(
+                      Icons.timer_rounded,
+                      'Duration',
+                      _formatDuration(duration),
+                      isDark,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              ),
+
+              const SizedBox(height: 32),
+
+              // Action Buttons
+              _buildCompleteActionButtons(isDark),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: _getCategoryColor().withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            size: 24,
-            color: _getCategoryColor(),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+  Widget _buildModernStatRow(
+    IconData icon,
+    String label,
+    String value,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2D2D2D) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _getCategoryColor().withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: _getCategoryColor(),
             ),
           ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: _getCategoryColor(),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyContent() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.library_books,
-            size: 80,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(height: 16),
           Text(
-            'No content available',
+            value,
             style: TextStyle(
               fontSize: 18,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Please check back later',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
+              fontWeight: FontWeight.bold,
+              color: _getCategoryColor(),
             ),
           ),
         ],
@@ -622,19 +812,203 @@ class _VocabularyTherapyScreenState
     );
   }
 
-  Widget _buildErrorContent(String error) {
+  Widget _buildCompleteActionButtons(bool isDark) {
+    return Column(
+      children: [
+        // Try Again Button
+        Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _getCategoryColor(),
+                _getCategoryColor().withOpacity(0.8),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: _getCategoryColor().withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  currentIndex = 0;
+                  correctAnswers = 0;
+                  totalAnswers = 0;
+                  sessionStartTime = DateTime.now();
+                });
+                _startTherapySession();
+                _animationController.reset();
+                _animationController.forward();
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: const Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.refresh_rounded, color: Colors.white, size: 24),
+                    SizedBox(width: 12),
+                    Text(
+                      'Try Again',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Back Button
+        Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.pop(context),
+              borderRadius: BorderRadius.circular(16),
+              child: Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.arrow_back_rounded,
+                      color: isDark ? Colors.white : Colors.black87,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Back to Categories',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================================
+  // LOADING & ERROR STATES
+  // ============================================================================
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: _getCategoryColor(),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Loading vocabulary...',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyContent(bool isDark) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.red,
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF2D2D2D)
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                Icons.library_books_rounded,
+                size: 60,
+                color: Colors.grey.shade400,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            Text(
+              'No content available',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please check back later',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorContent(String error, bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 60,
+                color: Colors.red.shade400,
+              ),
+            ),
+            const SizedBox(height: 24),
             const Text(
               'Oops! Something went wrong',
               style: TextStyle(
@@ -646,21 +1020,26 @@ class _VocabularyTherapyScreenState
             const SizedBox(height: 8),
             Text(
               error,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: Colors.red,
+                color: Colors.red.shade600,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back_rounded),
               label: const Text('Go Back'),
               style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade400,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -670,6 +1049,10 @@ class _VocabularyTherapyScreenState
     );
   }
 
+  // ============================================================================
+  // HELPER METHODS
+  // ============================================================================
+
   void _handleAnswer(bool isCorrect, List<TherapyContent> content) {
     setState(() {
       totalAnswers++;
@@ -677,25 +1060,33 @@ class _VocabularyTherapyScreenState
       currentIndex++;
     });
 
+    // Reset animation for next card
+    _animationController.reset();
+    _animationController.forward();
+
     // Show feedback
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(
-              isCorrect ? Icons.check_circle : Icons.cancel,
+              isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
               color: Colors.white,
             ),
             const SizedBox(width: 12),
-            Text(isCorrect ? 'Correct! Well done!' : 'Keep practicing!'),
+            Text(
+              isCorrect ? 'Correct! Well done!' : 'Keep practicing!',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ],
         ),
         backgroundColor: isCorrect ? Colors.green : Colors.orange,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 1),
+        duration: const Duration(milliseconds: 1500),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
+        margin: const EdgeInsets.all(16),
       ),
     );
 
@@ -753,38 +1144,38 @@ class _VocabularyTherapyScreenState
         int.parse(widget.category.color.substring(1), radix: 16) + 0xFF000000,
       );
     } catch (e) {
-      return Colors.green;
+      return const Color(0xFF4A90E2);
     }
   }
 
   IconData _getContentIcon(String word) {
     final iconMap = {
-      'cat': Icons.pets,
-      'kucing': Icons.pets,
-      'dog': Icons.pets,
-      'anjing': Icons.pets,
-      'apple': Icons.apple,
-      'apel': Icons.apple,
-      'red': Icons.palette,
-      'merah': Icons.palette,
-      'blue': Icons.palette,
-      'biru': Icons.palette,
-      'circle': Icons.circle,
-      'lingkaran': Icons.circle,
-      'square': Icons.square,
-      'kotak': Icons.square,
-      'ball': Icons.sports_soccer,
-      'bola': Icons.sports_soccer,
-      'car': Icons.directions_car,
-      'mobil': Icons.directions_car,
-      'house': Icons.home,
-      'rumah': Icons.home,
-      'tree': Icons.park,
-      'pohon': Icons.park,
-      'book': Icons.book,
-      'buku': Icons.book,
+      'cat': Icons.pets_rounded,
+      'kucing': Icons.pets_rounded,
+      'dog': Icons.pets_rounded,
+      'anjing': Icons.pets_rounded,
+      'apple': Icons.apple_rounded,
+      'apel': Icons.apple_rounded,
+      'red': Icons.palette_rounded,
+      'merah': Icons.palette_rounded,
+      'blue': Icons.palette_rounded,
+      'biru': Icons.palette_rounded,
+      'circle': Icons.circle_rounded,
+      'lingkaran': Icons.circle_rounded,
+      'square': Icons.square_rounded,
+      'kotak': Icons.square_rounded,
+      'ball': Icons.sports_soccer_rounded,
+      'bola': Icons.sports_soccer_rounded,
+      'car': Icons.directions_car_rounded,
+      'mobil': Icons.directions_car_rounded,
+      'house': Icons.home_rounded,
+      'rumah': Icons.home_rounded,
+      'tree': Icons.park_rounded,
+      'pohon': Icons.park_rounded,
+      'book': Icons.book_rounded,
+      'buku': Icons.book_rounded,
     };
 
-    return iconMap[word.toLowerCase()] ?? Icons.category;
+    return iconMap[word.toLowerCase()] ?? Icons.category_rounded;
   }
 }

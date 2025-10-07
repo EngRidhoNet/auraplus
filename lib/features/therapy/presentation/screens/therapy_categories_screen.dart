@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/therapy_provider.dart';
 import '../../domain/models/therapy_category.dart';
 import '../../domain/models/therapy_session.dart';
+import '../../domain/models/therapy_content.dart';
 import 'vocabulary_therapy_screen.dart';
 import 'verbal_therapy_screen.dart';
 import 'aac_therapy_screen.dart';
 
-class TherapyCategoriesScreen extends ConsumerWidget {
+class TherapyCategoriesScreen extends ConsumerStatefulWidget {
   final SessionType sessionType;
   final String title;
   
@@ -18,149 +19,212 @@ class TherapyCategoriesScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TherapyCategoriesScreen> createState() =>
+      _TherapyCategoriesScreenState();
+}
+
+class _TherapyCategoriesScreenState
+    extends ConsumerState<TherapyCategoriesScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(therapyCategoriesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      backgroundColor: _getBackgroundColor(),
-      appBar: _buildAppBar(context),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
+      extendBodyBehindAppBar: false,
+      appBar: _buildModernAppBar(isDark),
       body: categoriesAsync.when(
-        data: (categories) => _buildCategoriesList(context, categories, ref),
-        loading: () => _buildLoadingState(),
-        error: (error, stack) => _buildErrorContent(context, error.toString(), ref),
+        data: (categories) => _buildCategoriesList(context, categories, ref, isDark),
+        loading: () => _buildLoadingState(isDark),
+        error: (error, stack) => _buildErrorContent(context, error.toString(), ref, isDark),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  // ============================================================================
+  // APP BAR
+  // ============================================================================
+
+  PreferredSizeWidget _buildModernAppBar(bool isDark) {
     return AppBar(
-      title: Text(title),
-      backgroundColor: _getAppBarColor(),
-      foregroundColor: Colors.white,
       elevation: 0,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      foregroundColor: isDark ? Colors.white : Colors.black87,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2D2D2D) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _getSessionTypeTitle(),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          Text(
+            'Choose a category',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              fontWeight: FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.info_outline),
-          onPressed: () => _showSessionTypeInfo(context),
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2D2D2D) : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.info_outline_rounded, size: 20),
+            onPressed: () => _showSessionTypeInfo(context, isDark),
+          ),
         ),
       ],
     );
   }
 
-  Color _getAppBarColor() {
-    switch (sessionType) {
-      case SessionType.vocabulary:
-        return Colors.green.shade700;
-      case SessionType.verbal:
-        return Colors.orange.shade700;
-      case SessionType.aac:
-        return Colors.purple.shade700;
-    }
-  }
+  // ============================================================================
+  // MAIN CONTENT
+  // ============================================================================
 
-  Color _getBackgroundColor() {
-    switch (sessionType) {
-      case SessionType.vocabulary:
-        return Colors.green.shade50;
-      case SessionType.verbal:
-        return Colors.orange.shade50;
-      case SessionType.aac:
-        return Colors.purple.shade50;
-    }
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(_getAppBarColor()),
+  Widget _buildCategoriesList(
+    BuildContext context,
+    List<TherapyCategory> categories,
+    WidgetRef ref,
+    bool isDark,
+  ) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // Modern Header
+          SliverToBoxAdapter(
+            child: _buildModernHeader(isDark),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Loading categories...',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+          
+          // Categories Grid
+          categories.isEmpty
+              ? SliverToBoxAdapter(child: _buildEmptyState(isDark))
+              : SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 0.85,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return _buildModernCategoryCard(
+                          context,
+                          categories[index],
+                          ref,
+                          isDark,
+                          index,
+                        );
+                      },
+                      childCount: categories.length,
+                    ),
+                  ),
+                ),
+          
+          // Bottom Spacing
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 40),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildCategoriesList(BuildContext context, List<TherapyCategory> categories, WidgetRef ref) {
-    return CustomScrollView(
-      slivers: [
-        // Header section
-        SliverToBoxAdapter(
-          child: _buildHeader(),
-        ),
-        
-        // Categories grid
-        SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: categories.isEmpty
-              ? SliverToBoxAdapter(child: _buildEmptyState())
-              : SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.85,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final category = categories[index];
-                      return _buildCategoryCard(context, category, ref);
-                    },
-                    childCount: categories.length,
-                  ),
-                ),
-        ),
-        
-        // Bottom padding
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 20),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildHeader() {
+  Widget _buildModernHeader(bool isDark) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            _getAppBarColor().withOpacity(0.1),
-            _getAppBarColor().withOpacity(0.05),
+            _getSessionTypeColor(),
+            _getSessionTypeColor().withOpacity(0.8),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _getAppBarColor().withOpacity(0.2),
-        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: _getSessionTypeColor().withOpacity(0.4),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Icon + Title Row
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: _getAppBarColor().withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   _getSessionTypeIcon(),
                   size: 32,
-                  color: _getAppBarColor(),
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 16),
@@ -170,18 +234,21 @@ class TherapyCategoriesScreen extends ConsumerWidget {
                   children: [
                     Text(
                       _getSessionTypeTitle(),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: _getAppBarColor(),
+                        color: Colors.white,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Choose a Category',
+                      _getSessionTypeShortName(),
                       style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 2,
                       ),
                     ),
                   ],
@@ -189,217 +256,320 @@ class TherapyCategoriesScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            _getSessionTypeDescription(),
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-              height: 1.4,
+
+          const SizedBox(height: 20),
+
+          // Description
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              _getSessionTypeDescription(),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.95),
+                height: 1.5,
+              ),
             ),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildCategoryCard(BuildContext context, TherapyCategory category, WidgetRef ref) {
+
+  Widget _buildModernCategoryCard(
+    BuildContext context,
+    TherapyCategory category,
+    WidgetRef ref,
+    bool isDark,
+    int index,
+  ) {
     final color = _getColorFromHex(category.color);
-    
-    return Card(
-      elevation: 6,
-      shadowColor: color.withOpacity(0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: InkWell(
-        onTap: () => _navigateToSession(context, category),
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withOpacity(0.1),
-                color.withOpacity(0.05),
-              ],
-            ),
+
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 400 + (index * 50)),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: value,
+          child: Opacity(
+            opacity: value,
+            child: child,
           ),
-          child: Stack(
-            children: [
-              // Background pattern
-              Positioned(
-                right: -20,
-                top: -20,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withOpacity(0.05),
-                  ),
-                ),
-              ),
-              
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Icon container
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            color.withOpacity(0.2),
-                            color.withOpacity(0.1),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withOpacity(0.3)
+                  : color.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _navigateToSession(context, category),
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              children: [
+                // Background Gradient Circle
+                Positioned(
+                  right: -30,
+                  top: -30,
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          color.withOpacity(0.15),
+                          color.withOpacity(0.0),
                         ],
                       ),
-                      child: Icon(
-                        _getCategoryIcon(category.name),
-                        size: 36,
-                        color: color,
-                      ),
                     ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Title
-                    Text(
-                      category.name,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade800,
+                  ),
+                ),
+
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Icon Container with Gradient
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              color.withOpacity(0.2),
+                              color.withOpacity(0.1),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: color.withOpacity(0.3),
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          _getCategoryIcon(category.name),
+                          size: 40,
+                          color: color,
+                        ),
                       ),
-                    ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    // Description
-                    if (category.description != null)
+
+                      const SizedBox(height: 16),
+
+                      // Category Name
                       Text(
-                        category.description!,
+                        category.name,
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          height: 1.3,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                          height: 1.2,
                         ),
                       ),
-                    
-                    const Spacer(),
-                    
-                    // Session type indicator
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getAppBarColor().withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _getSessionTypeIcon(),
-                            size: 12,
-                            color: _getAppBarColor(),
+
+                      const SizedBox(height: 8),
+
+                      // Description
+                      if (category.description != null)
+                        Text(
+                          category.description!,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                            height: 1.3,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _getSessionTypeShortName(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: _getAppBarColor(),
+                        ),
+
+                      const Spacer(),
+
+                      // Session Type Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getSessionTypeColor().withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _getSessionTypeColor().withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getSessionTypeIcon(),
+                              size: 12,
+                              color: _getSessionTypeColor(),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Text(
+                              _getSessionTypeShortName(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: _getSessionTypeColor(),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+
+                // Tap Effect Indicator
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-  
-  Widget _buildEmptyState() {
+
+  // ============================================================================
+  // EMPTY & ERROR STATES
+  // ============================================================================
+
+  Widget _buildEmptyState(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 140,
+            height: 140,
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(60),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _getSessionTypeColor().withOpacity(0.2),
+                  _getSessionTypeColor().withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: _getSessionTypeColor().withOpacity(0.3),
+                width: 2,
+              ),
             ),
             child: Icon(
               Icons.category_outlined,
-              size: 60,
-              color: Colors.grey.shade400,
+              size: 70,
+              color: _getSessionTypeColor(),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           Text(
             'No Categories Available',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 12),
           Text(
-            'Categories for ${sessionType.displayName} will appear here when added.',
+            'Categories for ${_getSessionTypeTitle()}\nwill appear here when added.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade600,
-              height: 1.4,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              height: 1.5,
             ),
           ),
-          const SizedBox(height: 24),
-          Builder(
-            builder: (context) => ElevatedButton.icon(
-              onPressed: () {
-                // Add sample categories for testing
-                _addSampleCategories(context);
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Sample Categories'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _getAppBarColor(),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
+          const SizedBox(height: 32),
+          Container(
+            height: 52,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _getSessionTypeColor(),
+                  _getSessionTypeColor().withOpacity(0.8),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: _getSessionTypeColor().withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _addSampleCategories(context),
+                borderRadius: BorderRadius.circular(16),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, color: Colors.white, size: 24),
+                      SizedBox(width: 12),
+                      Text(
+                        'Add Sample Categories',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -407,8 +577,57 @@ class TherapyCategoriesScreen extends ConsumerWidget {
       ),
     );
   }
-  
-  Widget _buildErrorContent(BuildContext context, String error, WidgetRef ref) {
+
+  Widget _buildLoadingState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _getSessionTypeColor().withOpacity(0.2),
+                  _getSessionTypeColor().withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _getSessionTypeColor(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Loading categories...',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorContent(
+    BuildContext context,
+    String error,
+    WidgetRef ref,
+    bool isDark,
+  ) {
     return Container(
       padding: const EdgeInsets.all(40),
       child: Column(
@@ -419,10 +638,14 @@ class TherapyCategoriesScreen extends ConsumerWidget {
             height: 120,
             decoration: BoxDecoration(
               color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(60),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Colors.red.shade200,
+                width: 2,
+              ),
             ),
             child: Icon(
-              Icons.error_outline,
+              Icons.error_outline_rounded,
               size: 60,
               color: Colors.red.shade400,
             ),
@@ -431,43 +654,124 @@ class TherapyCategoriesScreen extends ConsumerWidget {
           Text(
             'Error Loading Categories',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            error,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.red.shade600,
-              height: 1.4,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.red.shade700,
+                height: 1.5,
+              ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  ref.refresh(therapyCategoriesProvider);
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _getAppBarColor(),
-                  foregroundColor: Colors.white,
+              // Retry Button
+              Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _getSessionTypeColor(),
+                      _getSessionTypeColor().withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getSessionTypeColor().withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => ref.refresh(therapyCategoriesProvider),
+                    borderRadius: BorderRadius.circular(16),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.refresh_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Retry',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
+
               const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Go Back'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _getAppBarColor(),
+
+              // Go Back Button
+              Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF2D2D2D)
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                  ),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.arrow_back_rounded,
+                            color: isDark ? Colors.white : Colors.black87,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Go Back',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -477,10 +781,14 @@ class TherapyCategoriesScreen extends ConsumerWidget {
     );
   }
 
+  // ============================================================================
+  // NAVIGATION
+  // ============================================================================
+
   void _navigateToSession(BuildContext context, TherapyCategory category) {
     Widget destinationScreen;
     
-    switch (sessionType) {
+    switch (widget.sessionType) {
       case SessionType.vocabulary:
         destinationScreen = VocabularyTherapyScreen(category: category);
         break;
@@ -488,11 +796,24 @@ class TherapyCategoriesScreen extends ConsumerWidget {
         destinationScreen = VerbalTherapyScreen(
           content: _createSampleContent(category),
           onComplete: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Verbal therapy session completed!'),
-              ),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Row(
+                    children: [
+                      Icon(Icons.celebration_rounded, color: Colors.white),
+                      SizedBox(width: 12),
+                      Text('Verbal therapy session completed! 🎉'),
+                    ],
+                  ),
+                  backgroundColor: const Color(0xFF66BB6A),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              );
+            }
           },
         );
         break;
@@ -506,24 +827,47 @@ class TherapyCategoriesScreen extends ConsumerWidget {
     
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => destinationScreen),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            destinationScreen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+      ),
     );
   }
 
-  // Helper methods
-  IconData _getSessionTypeIcon() {
-    switch (sessionType) {
+  // ============================================================================
+  // HELPER METHODS
+  // ============================================================================
+
+  Color _getSessionTypeColor() {
+    switch (widget.sessionType) {
       case SessionType.vocabulary:
-        return Icons.school;
+        return const Color(0xFF66BB6A);
       case SessionType.verbal:
-        return Icons.record_voice_over;
+        return const Color(0xFFFF9800);
       case SessionType.aac:
-        return Icons.touch_app;
+        return const Color(0xFF9C27B0);
+    }
+  }
+
+  IconData _getSessionTypeIcon() {
+    switch (widget.sessionType) {
+      case SessionType.vocabulary:
+        return Icons.school_rounded;
+      case SessionType.verbal:
+        return Icons.record_voice_over_rounded;
+      case SessionType.aac:
+        return Icons.touch_app_rounded;
     }
   }
 
   String _getSessionTypeTitle() {
-    switch (sessionType) {
+    switch (widget.sessionType) {
       case SessionType.vocabulary:
         return 'Vocabulary Therapy';
       case SessionType.verbal:
@@ -534,7 +878,7 @@ class TherapyCategoriesScreen extends ConsumerWidget {
   }
 
   String _getSessionTypeShortName() {
-    switch (sessionType) {
+    switch (widget.sessionType) {
       case SessionType.vocabulary:
         return 'VOCAB';
       case SessionType.verbal:
@@ -545,94 +889,151 @@ class TherapyCategoriesScreen extends ConsumerWidget {
   }
 
   String _getSessionTypeDescription() {
-    switch (sessionType) {
+    switch (widget.sessionType) {
       case SessionType.vocabulary:
-        return 'Interactive vocabulary learning with AR visualization and word recognition exercises.';
+        return 'Interactive vocabulary learning with AR visualization and word recognition exercises to enhance language skills.';
       case SessionType.verbal:
-        return 'Speech practice sessions with real-time pronunciation feedback and voice recognition.';
+        return 'Speech practice sessions with real-time pronunciation feedback and voice recognition technology.';
       case SessionType.aac:
-        return 'Alternative communication tools using symbols, pictures, and interactive communication boards.';
+        return 'Alternative communication tools using symbols, pictures, and interactive communication boards for non-verbal expression.';
     }
   }
-  
+
   Color _getColorFromHex(String hexColor) {
     try {
       return Color(int.parse(hexColor.substring(1), radix: 16) + 0xFF000000);
     } catch (e) {
-      return _getAppBarColor(); // Use session type color as default
-    }
-  }
-  
-  IconData _getCategoryIcon(String categoryName) {
-    switch (categoryName.toLowerCase()) {
-      case 'animals':
-        return Icons.pets;
-      case 'food & drinks':
-      case 'food':
-        return Icons.restaurant;
-      case 'colors & shapes':
-      case 'colors':
-        return Icons.palette;
-      case 'body parts':
-      case 'body':
-        return Icons.accessibility;
-      case 'family & people':
-      case 'family':
-        return Icons.family_restroom;
-      case 'emotions':
-        return Icons.sentiment_satisfied;
-      case 'actions':
-        return Icons.directions_run;
-      case 'objects':
-        return Icons.category;
-      default:
-        return Icons.category;
+      return _getSessionTypeColor();
     }
   }
 
-  void _showSessionTypeInfo(BuildContext context) {
-    // Show dialog with session type information
+  IconData _getCategoryIcon(String categoryName) {
+    final iconMap = {
+      'animals': Icons.pets_rounded,
+      'food & drinks': Icons.restaurant_rounded,
+      'food': Icons.restaurant_rounded,
+      'colors & shapes': Icons.palette_rounded,
+      'colors': Icons.palette_rounded,
+      'shapes': Icons.category_rounded,
+      'body parts': Icons.accessibility_rounded,
+      'body': Icons.accessibility_rounded,
+      'family & people': Icons.family_restroom_rounded,
+      'family': Icons.family_restroom_rounded,
+      'emotions': Icons.sentiment_satisfied_rounded,
+      'actions': Icons.directions_run_rounded,
+      'objects': Icons.widgets_rounded,
+      'places': Icons.place_rounded,
+      'vehicles': Icons.directions_car_rounded,
+      'nature': Icons.nature_rounded,
+    };
+
+    return iconMap[categoryName.toLowerCase()] ?? Icons.category_rounded;
+  }
+
+  void _showSessionTypeInfo(BuildContext context, bool isDark) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_getSessionTypeTitle()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: Row(
           children: [
-            Text(_getSessionTypeDescription()),
-            const SizedBox(height: 16),
-            Text(
-              'Features:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: _getAppBarColor(),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _getSessionTypeColor().withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _getSessionTypeIcon(),
+                color: _getSessionTypeColor(),
+                size: 24,
               ),
             ),
-            const SizedBox(height: 8),
-            ..._getSessionTypeFeatures().map((feature) => 
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: 16,
-                      color: _getAppBarColor(),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(feature)),
-                  ],
-                ),
-              ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(_getSessionTypeTitle()),
             ),
           ],
         ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _getSessionTypeDescription(),
+                style: const TextStyle(height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _getSessionTypeColor().withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Features:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getSessionTypeColor(),
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._getSessionTypeFeatures().map((feature) => 
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.check_circle_rounded,
+                              size: 18,
+                              color: _getSessionTypeColor(),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                feature,
+                                style: const TextStyle(height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it!'),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _getSessionTypeColor(),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Got it!',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -640,97 +1041,102 @@ class TherapyCategoriesScreen extends ConsumerWidget {
   }
 
   List<String> _getSessionTypeFeatures() {
-    switch (sessionType) {
+    switch (widget.sessionType) {
       case SessionType.vocabulary:
         return [
-          'AR word visualization',
-          '3D interactive models',
-          'Pronunciation guides',
-          'Progress tracking',
+          'AR word visualization in 3D space',
+          'Interactive 3D models',
+          'Pronunciation guides with audio',
+          'Progress tracking and analytics',
+          'Adaptive difficulty levels',
         ];
       case SessionType.verbal:
         return [
-          'Speech recognition',
-          'Pronunciation feedback',
-          'Real-time analysis',
-          'Speaking practice',
+          'Real-time speech recognition',
+          'Pronunciation feedback and analysis',
+          'Voice quality assessment',
+          'Speaking practice exercises',
+          'Progress monitoring',
         ];
       case SessionType.aac:
         return [
-          'Symbol communication',
-          'Picture exchange',
+          'Symbol-based communication',
+          'Picture exchange system',
           'Touch-based interaction',
-          'Customizable boards',
+          'Customizable communication boards',
+          'Voice output options',
         ];
     }
   }
 
   void _addSampleCategories(BuildContext context) {
-    // This would trigger adding sample categories
-    // In real app, this would call a provider method
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sample categories would be added here'),
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: Colors.white),
+            SizedBox(width: 12),
+            Text('Sample categories feature coming soon!'),
+          ],
+        ),
+        backgroundColor: _getSessionTypeColor(),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
 
-  // Create sample content for testing
-  dynamic _createSampleContent(TherapyCategory category) {
-    // This should return appropriate content based on session type
-    // For now, return a basic structure that matches expected interface
-    return {
-      'id': 'sample_${category.id}',
-      'categoryId': category.id,
-      'title': 'Sample ${category.name} Word',
-      'description': 'Practice word from ${category.name}',
-      'contentType': 'word',
-      'difficultyLevel': 1,
-      'targetWord': _getSampleWord(category.name),
-      'pronunciation': _getSamplePronunciation(category.name),
-      'createdAt': DateTime.now(),
-    };
+  TherapyContent _createSampleContent(TherapyCategory category) {
+    return TherapyContent(
+      id: 'sample_${category.id}',
+      categoryId: category.id,
+      title: _getSampleWord(category.name),
+      targetWord: _getSampleWord(category.name),
+      pronunciation: _getSamplePronunciation(category.name),
+      description: 'Practice word from ${category.name} category',
+      contentType: ContentType.word,
+      difficultyLevel: 1,
+      imageUrl: null,
+      audioUrl: null,
+      createdAt: DateTime.now(),
+    );
   }
 
   String _getSampleWord(String categoryName) {
-    switch (categoryName.toLowerCase()) {
-      case 'animals':
-        return 'cat';
-      case 'food & drinks':
-      case 'food':
-        return 'apple';
-      case 'colors & shapes':
-      case 'colors':
-        return 'red';
-      case 'body parts':
-      case 'body':
-        return 'hand';
-      case 'family & people':
-      case 'family':
-        return 'mom';
-      default:
-        return 'word';
-    }
+    final sampleWords = {
+      'animals': 'cat',
+      'food & drinks': 'apple',
+      'food': 'apple',
+      'colors & shapes': 'red',
+      'colors': 'red',
+      'body parts': 'hand',
+      'body': 'hand',
+      'family & people': 'mom',
+      'family': 'mom',
+      'emotions': 'happy',
+      'actions': 'run',
+    };
+
+    return sampleWords[categoryName.toLowerCase()] ?? 'word';
   }
 
   String _getSamplePronunciation(String categoryName) {
-    switch (categoryName.toLowerCase()) {
-      case 'animals':
-        return '/kæt/';
-      case 'food & drinks':
-      case 'food':
-        return '/ˈæpəl/';
-      case 'colors & shapes':
-      case 'colors':
-        return '/red/';
-      case 'body parts':
-      case 'body':
-        return '/hænd/';
-      case 'family & people':
-      case 'family':
-        return '/mɑm/';
-      default:
-        return '/wɜrd/';
-    }
+    final pronunciations = {
+      'animals': '/kæt/',
+      'food & drinks': '/ˈæpəl/',
+      'food': '/ˈæpəl/',
+      'colors & shapes': '/red/',
+      'colors': '/red/',
+      'body parts': '/hænd/',
+      'body': '/hænd/',
+      'family & people': '/mɑm/',
+      'family': '/mɑm/',
+      'emotions': '/ˈhæpi/',
+      'actions': '/rʌn/',
+    };
+
+    return pronunciations[categoryName.toLowerCase()] ?? '/wɜrd/';
   }
 }

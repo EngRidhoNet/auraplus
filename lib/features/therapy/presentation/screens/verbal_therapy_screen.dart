@@ -33,6 +33,9 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
   late AnimationController _pulseController;
   late AnimationController _waveController;
   late AnimationController _successController;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
   
   // Therapy state
   int _currentAttempt = 0;
@@ -53,7 +56,7 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
 
   void _initializeAnimations() {
     _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     
@@ -66,11 +69,34 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
+
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fadeController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _fadeController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _fadeController.forward();
   }
 
   void _initializeSpeechRecognition() {
     // In real implementation, initialize speech recognition service
-    // For now, we'll simulate it
   }
 
   @override
@@ -78,245 +104,496 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
     _pulseController.dispose();
     _waveController.dispose();
     _successController.dispose();
+    _fadeController.dispose();
     _speechTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
-      appBar: _buildAppBar(),
-      body: _buildBody(),
-      bottomNavigationBar: _buildBottomControls(),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
+      extendBodyBehindAppBar: false,
+      appBar: _buildModernAppBar(isDark),
+      body: _buildBody(isDark),
+      bottomNavigationBar: _buildBottomControls(isDark),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  // ============================================================================
+  // APP BAR
+  // ============================================================================
+
+  PreferredSizeWidget _buildModernAppBar(bool isDark) {
     return AppBar(
-      title: const Text('Verbal Therapy'),
-      backgroundColor: Colors.green.shade700,
-      foregroundColor: Colors.white,
       elevation: 0,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.help_outline),
-          onPressed: _showInstructions,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      foregroundColor: isDark ? Colors.white : Colors.black87,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2D2D2D) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
         ),
-      ],
-    );
-  }
-
-  Widget _buildBody() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          // Progress indicator
-          _buildProgressIndicator(),
-          
-          const SizedBox(height: 24),
-          
-          // Word display
-          _buildWordDisplay(),
-          
-          const SizedBox(height: 32),
-          
-          // Speech visualization
-          _buildSpeechVisualization(),
-          
-          const SizedBox(height: 32),
-          
-          // Recognition feedback
-          if (_recognizedText.isNotEmpty) _buildRecognitionFeedback(),
-          
-          const SizedBox(height: 24),
-          
-          // Attempts history
-          if (_attempts.isNotEmpty) _buildAttemptsHistory(),
-        ],
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-    );
-  }
-
-  Widget _buildProgressIndicator() {
-    final progress = _currentAttempt / _maxAttempts;
-    
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Attempt ${_currentAttempt + 1} of $_maxAttempts',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-              ),
-            ),
-            Text(
-              '${(_currentAttempt / _maxAttempts * 100).toInt()}%',
-              style: const TextStyle(
-                color: Colors.green,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: progress,
-          backgroundColor: Colors.white.withOpacity(0.2),
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade400),
-          minHeight: 8,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWordDisplay() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.green.withOpacity(0.8),
-            Colors.blue.withOpacity(0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.green.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Say this word:',
+          Text(
+            'Verbal Therapy',
             style: TextStyle(
               fontSize: 18,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            widget.content.targetWord.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 48,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 2,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
-          if (widget.content.pronunciation != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                widget.content.pronunciation!,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white,
+          Text(
+            'Practice pronunciation',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              fontWeight: FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2D2D2D) : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.help_outline_rounded, size: 20),
+            onPressed: _showInstructions,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================================
+  // MAIN BODY
+  // ============================================================================
+
+  Widget _buildBody(bool isDark) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Column(
+          children: [
+            // Modern Progress Bar
+            _buildProgressBar(isDark),
+
+            // Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // Word Display Card
+                    _buildModernWordCard(isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Speech Visualization
+                    _buildModernSpeechVisualization(isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Recognition Feedback
+                    if (_recognizedText.isNotEmpty) 
+                      _buildModernRecognitionFeedback(isDark),
+                    
+                    if (_recognizedText.isNotEmpty)
+                      const SizedBox(height: 24),
+                    
+                    // Attempts History
+                    if (_attempts.isNotEmpty) 
+                      _buildModernAttemptsHistory(isDark),
+                  ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar(bool isDark) {
+    final progress = _currentAttempt / _maxAttempts;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF66BB6A).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.record_voice_over_rounded,
+                      size: 16,
+                      color: Color(0xFF66BB6A),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Attempt ${_currentAttempt + 1} of $_maxAttempts',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF66BB6A).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${(progress * 100).toInt()}%',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF66BB6A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: isDark 
+                  ? const Color(0xFF2D2D2D) 
+                  : Colors.grey.shade200,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF66BB6A),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSpeechVisualization() {
+  Widget _buildModernWordCard(bool isDark) {
     return Container(
-      height: 200,
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF66BB6A),
+            Color(0xFF43A047),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF66BB6A).withOpacity(0.4),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.volume_up_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Say this word clearly',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Main Word
+          Text(
+            widget.content.targetWord.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 56,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 3,
+              height: 1.1,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          // Pronunciation Guide
+          if (widget.content.pronunciation != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.hearing_rounded,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.content.pronunciation!,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Description
+          if (widget.content.description != null) ...[
+            const SizedBox(height: 16),
+            Text(
+              widget.content.description!,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.9),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernSpeechVisualization(bool isDark) {
+    return Container(
+      height: 240,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: _isListening ? Colors.green : Colors.white.withOpacity(0.3),
+          color: _isListening 
+              ? const Color(0xFF66BB6A)
+              : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
           width: 2,
         ),
+        boxShadow: [
+          if (_isListening)
+            BoxShadow(
+              color: const Color(0xFF66BB6A).withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+        ],
       ),
       child: Stack(
         children: [
-          // Wave visualizer
+          // Wave Visualizer Background
           SpeechWaveVisualizer(
             isActive: _isListening,
             speechLevels: _speechLevels,
             currentVolume: _currentVolume,
           ),
           
-          // Center microphone
+          // Center Microphone Button
           Center(
-            child: AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                final scale = _isListening 
-                    ? 1.0 + _pulseController.value * 0.3
-                    : 1.0;
-                
-                return Transform.scale(
-                  scale: scale,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: _isListening 
-                          ? Colors.red.withOpacity(0.8)
-                          : Colors.green.withOpacity(0.8),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isListening ? Colors.red : Colors.green)
-                              .withOpacity(0.5),
-                          blurRadius: 20,
+            child: GestureDetector(
+              onTap: _toggleListening,
+              child: AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  final scale = _isListening 
+                      ? 1.0 + (_pulseController.value * 0.15)
+                      : 1.0;
+                  
+                  return Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: _isListening 
+                              ? [
+                                  Colors.red.shade400,
+                                  Colors.red.shade600,
+                                ]
+                              : [
+                                  const Color(0xFF66BB6A),
+                                  const Color(0xFF43A047),
+                                ],
                         ),
-                      ],
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_isListening 
+                                ? Colors.red 
+                                : const Color(0xFF66BB6A)
+                            ).withOpacity(0.5),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        _isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                        color: Colors.white,
+                        size: 48,
+                      ),
                     ),
-                    child: Icon(
-                      _isListening ? Icons.stop : Icons.mic,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
           
-          // Status text overlay
+          // Status Indicator
           if (_isListening)
             Positioned(
-              bottom: 20,
+              bottom: 24,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withOpacity(0.8),
+                        Colors.black.withOpacity(0.6),
+                      ],
+                    ),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'Listening... Say the word clearly',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Listening... Speak clearly',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Tap to start hint (when not listening)
+          if (!_isListening && _attempts.isEmpty)
+            Positioned(
+              top: 24,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF66BB6A).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF66BB6A).withOpacity(0.3),
                     ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.touch_app_rounded,
+                        size: 16,
+                        color: Color(0xFF66BB6A),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Tap microphone to start',
+                        style: TextStyle(
+                          color: Color(0xFF66BB6A),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -326,7 +603,7 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
     );
   }
 
-  Widget _buildRecognitionFeedback() {
+  Widget _buildModernRecognitionFeedback(bool isDark) {
     return PronunciationFeedback(
       targetWord: widget.content.targetWord,
       recognizedText: _recognizedText,
@@ -335,25 +612,55 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
     );
   }
 
-  Widget _buildAttemptsHistory() {
+  Widget _buildModernAttemptsHistory(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withOpacity(0.3)
+                : Colors.grey.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Your Attempts',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF66BB6A).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  size: 20,
+                  color: Color(0xFF66BB6A),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Your Attempts',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           ..._attempts.asMap().entries.map((entry) {
             final index = entry.key;
             final attempt = entry.value;
@@ -361,39 +668,94 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
                 widget.content.targetWord.toLowerCase();
             
             return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isCorrect 
-                    ? Colors.green.withOpacity(0.2)
-                    : Colors.orange.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+                    ? const Color(0xFF66BB6A).withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isCorrect ? Colors.green : Colors.orange,
+                  color: isCorrect 
+                      ? const Color(0xFF66BB6A)
+                      : Colors.orange.shade400,
+                  width: 2,
                 ),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    isCorrect ? Icons.check_circle : Icons.info,
-                    color: isCorrect ? Colors.green : Colors.orange,
-                    size: 20,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isCorrect 
+                          ? const Color(0xFF66BB6A)
+                          : Colors.orange.shade400,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isCorrect 
+                          ? Icons.check_rounded 
+                          : Icons.close_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
-                    child: Text(
-                      'Attempt ${index + 1}: "$attempt"',
-                      style: TextStyle(
-                        color: isCorrect ? Colors.green : Colors.orange,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Attempt ${index + 1}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark 
+                                ? Colors.grey.shade400 
+                                : Colors.grey.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '"$attempt"',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   if (isCorrect)
-                    const Icon(
-                      Icons.star,
-                      color: Colors.yellow,
-                      size: 16,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.amber,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Perfect!',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
@@ -404,70 +766,114 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
     );
   }
 
-  Widget _buildBottomControls() {
+  // ============================================================================
+  // BOTTOM CONTROLS
+  // ============================================================================
+
+  Widget _buildBottomControls(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF16213E),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Main action button
-            SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton.icon(
-                onPressed: _sessionComplete ? null : _toggleListening,
-                icon: Icon(_isListening ? Icons.stop : Icons.mic),
-                label: Text(
-                  _sessionComplete 
-                      ? 'Session Complete!'
-                      : _isListening 
-                          ? 'Stop Recording' 
-                          : 'Start Speaking',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _sessionComplete 
-                      ? Colors.grey
-                      : _isListening 
-                          ? Colors.red 
-                          : Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Secondary buttons
+            // Secondary Buttons Row
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _playExample,
-                    icon: const Icon(Icons.volume_up),
-                    label: const Text('Play Example'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: const BorderSide(color: Colors.green),
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: isDark 
+                          ? const Color(0xFF2D2D2D) 
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFF66BB6A).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _playExample,
+                        borderRadius: BorderRadius.circular(16),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.volume_up_rounded,
+                              color: Color(0xFF66BB6A),
+                              size: 20,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Play Example',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF66BB6A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _skipWord,
-                    icon: const Icon(Icons.skip_next),
-                    label: const Text('Skip'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.orange,
-                      side: const BorderSide(color: Colors.orange),
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: isDark 
+                          ? const Color(0xFF2D2D2D) 
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.orange.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _skipWord,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.skip_next_rounded,
+                              color: Colors.orange.shade400,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Skip',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange.shade400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -476,15 +882,53 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
             
             if (_sessionComplete) ...[
               const SizedBox(height: 16),
-              SizedBox(
+              // Complete Button
+              Container(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _completeSession,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Continue Learning'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF4A90E2),
+                      Color(0xFF357ABD),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4A90E2).withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _completeSession,
+                    borderRadius: BorderRadius.circular(16),
+                    child: const Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'Continue Learning',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -495,7 +939,13 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
     );
   }
 
+  // ============================================================================
+  // METHODS
+  // ============================================================================
+
   void _toggleListening() {
+    if (_sessionComplete) return;
+    
     if (_isListening) {
       _stopListening();
     } else {
@@ -522,12 +972,10 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
     _pulseController.stop();
     _speechTimer?.cancel();
     
-    // Simulate speech recognition result
     _simulateRecognitionResult();
   }
 
   void _simulateListening() {
-    // Simulate real-time speech level updates
     _speechTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (!_isListening) {
         timer.cancel();
@@ -543,27 +991,24 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
       });
     });
     
-    // Auto-stop after 3 seconds
     Timer(const Duration(seconds: 3), () {
       if (_isListening) _stopListening();
     });
   }
 
   void _simulateRecognitionResult() {
-    // Simulate speech recognition with varying accuracy
     final random = Random();
     final targetWord = widget.content.targetWord.toLowerCase();
     
-    // Simulate different recognition results
     final possibleResults = [
-      targetWord, // Perfect match
-      targetWord + 's', // Close match
-      targetWord.substring(0, targetWord.length - 1), // Partial match
-      _generateSimilarWord(targetWord), // Similar word
+      targetWord,
+      targetWord + 's',
+      targetWord.substring(0, max(1, targetWord.length - 1)),
+      _generateSimilarWord(targetWord),
     ];
     
     final recognizedText = possibleResults[random.nextInt(possibleResults.length)];
-    final confidence = random.nextDouble() * 0.4 + 0.6; // 60-100% confidence
+    final confidence = random.nextDouble() * 0.4 + 0.6;
     
     setState(() {
       _recognizedText = recognizedText;
@@ -572,11 +1017,27 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
       _currentAttempt++;
     });
     
-    // Check if word is correct
     if (recognizedText.toLowerCase() == targetWord) {
       _successController.forward();
       _sessionComplete = true;
       HapticFeedback.heavyImpact();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.celebration_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Perfect! You got it right! 🎉'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF66BB6A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     } else if (_currentAttempt >= _maxAttempts) {
       _sessionComplete = true;
     }
@@ -599,12 +1060,22 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
   }
 
   void _playExample() {
-    // In real implementation, play TTS of the target word
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Playing: "${widget.content.targetWord}"'),
+        content: Row(
+          children: [
+            const Icon(Icons.volume_up_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Text('Playing: "${widget.content.targetWord}"'),
+          ],
+        ),
+        backgroundColor: const Color(0xFF66BB6A),
+        behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
@@ -614,42 +1085,115 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
       _sessionComplete = true;
       _attempts.add('(skipped)');
     });
+    
+    HapticFeedback.lightImpact();
   }
 
   void _completeSession() {
+    final accuracy = _calculateAccuracy();
+    
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Verbal Therapy Complete! 🎉'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.celebration_rounded,
+              color: Color(0xFF66BB6A),
+              size: 32,
+            ),
+            SizedBox(width: 12),
+            Text('Session Complete!'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Great job practicing "${widget.content.targetWord}"!',
               textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Attempts: ${_attempts.length}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Accuracy: ${_calculateAccuracy()}%',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF66BB6A).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Attempts:',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '${_attempts.length}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF66BB6A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Accuracy:',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '$accuracy%',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF66BB6A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close therapy screen
-              if (widget.onComplete != null) {
-                widget.onComplete!();
-              }
-            },
-            child: const Text('Continue'),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Close therapy screen
+                if (widget.onComplete != null) {
+                  widget.onComplete!();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF66BB6A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -669,28 +1213,40 @@ class _VerbalTherapyScreenState extends State<VerbalTherapyScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Verbal Therapy Instructions'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: Color(0xFF66BB6A)),
+            SizedBox(width: 12),
+            Text('How It Works'),
+          ],
+        ),
         content: const SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('🎯 How it works:'),
+              Text(
+                '🎯 Instructions:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
               Text('• Look at the word displayed'),
               Text('• Tap the microphone to start'),
               Text('• Say the word clearly'),
               Text('• Get instant feedback'),
-              SizedBox(height: 12),
-              Text('💡 Tips for better recognition:'),
+              SizedBox(height: 16),
+              Text(
+                '💡 Tips:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
               Text('• Speak clearly and slowly'),
               Text('• Find a quiet environment'),
-              Text('• Hold device close to mouth'),
               Text('• Practice pronunciation first'),
-              SizedBox(height: 12),
-              Text('🎮 Controls:'),
-              Text('• Mic button: Start/stop recording'),
-              Text('• Play button: Hear example'),
-              Text('• Skip: Move to next word'),
+              Text('• Use the "Play Example" button'),
             ],
           ),
         ),
