@@ -9,6 +9,9 @@ import '../../../therapy/presentation/screens/verbal_therapy_screen.dart';
 import '../../../therapy/presentation/screens/aac_therapy_screen.dart';
 import '../../../therapy/domain/models/therapy_content.dart';
 
+// ✅ EMOTION DETECTION IMPORT
+import '../../../emotion/presentation/screens/emotion_detection_screen.dart';
+
 /// 🎨 Dashboard Home Screen - Modern Layout (Consistent Colors with Therapy List)
 class DashboardHomeScreen extends ConsumerWidget {
   const DashboardHomeScreen({super.key});
@@ -18,7 +21,6 @@ class DashboardHomeScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // ✅ SAME BACKGROUND AS THERAPY LIST
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
       body: SafeArea(
         child: CustomScrollView(
@@ -50,7 +52,7 @@ class DashboardHomeScreen extends ConsumerWidget {
                       ],
                     ),
                     
-                    // Notification Bell - ✅ WITH GREEN ACCENT
+                    // Notification Bell
                     Container(
                       width: 48,
                       height: 48,
@@ -76,7 +78,6 @@ class DashboardHomeScreen extends ConsumerWidget {
                               size: 24,
                             ),
                           ),
-                          // Notification dot
                           Positioned(
                             top: 12,
                             right: 12,
@@ -97,14 +98,13 @@ class DashboardHomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // 🔍 SEARCH BAR - ✅ SAME STYLE AS THERAPY LIST
+            // 🔍 SEARCH BAR
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
-                    // ✅ SAME COLORS AS THERAPY LIST
                     color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
@@ -150,13 +150,13 @@ class DashboardHomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     physics: const BouncingScrollPhysics(),
                     children: [
-                      // Card 1 - Vocabulary - ✅ GREEN GRADIENT
+                      // Card 1 - Vocabulary
                       _buildFeaturedCard(
                         context,
                         'Vocabulary\nTherapy',
                         '48 Activities',
                         Icons.school_rounded,
-                        const Color(0xFF66BB6A), // ✅ GREEN
+                        const Color(0xFF66BB6A),
                         isDark,
                         () {
                           Navigator.push(
@@ -170,13 +170,13 @@ class DashboardHomeScreen extends ConsumerWidget {
                       
                       const SizedBox(width: 16),
                       
-                      // Card 2 - Verbal - ✅ ORANGE
+                      // Card 2 - Verbal
                       _buildFeaturedCard(
                         context,
                         'Verbal\nTherapy',
                         '32 Exercises',
                         Icons.record_voice_over_rounded,
-                        const Color(0xFFFF9800), // ✅ ORANGE
+                        const Color(0xFFFF9800),
                         isDark,
                         () {
                           Navigator.push(
@@ -205,6 +205,26 @@ class DashboardHomeScreen extends ConsumerWidget {
                           );
                         },
                       ),
+
+                      const SizedBox(width: 16),
+                      
+                      // ✅ NEW CARD 3 - Emotion Detection
+                      _buildFeaturedCard(
+                        context,
+                        'Emotion\nDetection',
+                        'AI-Powered',
+                        Icons.psychology_rounded,
+                        const Color(0xFFE91E63), // Pink
+                        isDark,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EmotionDetectionScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -223,9 +243,17 @@ class DashboardHomeScreen extends ConsumerWidget {
                         width: 24,
                         height: 4,
                         decoration: BoxDecoration(
-                          // ✅ GREEN ACTIVE DOT
                           color: const Color(0xFF66BB6A),
                           borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                          shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -280,19 +308,40 @@ class DashboardHomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // 📋 THERAPY LIST - Vertical Cards - ✅ SAME STYLE AS THERAPY LIST
+            // 📋 THERAPY LIST - Vertical Cards
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Card 1 - AAC Communication
+                  // ✅ NEW CARD 1 - Emotion Detection (Full width in list)
+                  _buildTherapyListCard(
+                    context,
+                    'Emotion Detection',
+                    'AI-powered emotion recognition from facial expressions',
+                    'Real-time',
+                    Icons.psychology_rounded,
+                    const Color(0xFFE91E63), // Pink
+                    isDark,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EmotionDetectionScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 16),
+
+                  // Card 2 - AAC Communication
                   _buildTherapyListCard(
                     context,
                     'AAC Communication',
                     'Symbol-based communication tools',
                     '120 Symbols',
                     Icons.touch_app_rounded,
-                    const Color(0xFF9C27B0), // ✅ PURPLE
+                    const Color(0xFF9C27B0),
                     isDark,
                     () {
                       Navigator.push(
@@ -309,14 +358,14 @@ class DashboardHomeScreen extends ConsumerWidget {
                   
                   const SizedBox(height: 16),
                   
-                  // Card 2 - Progress Report
+                  // Card 3 - Progress Report
                   _buildTherapyListCard(
                     context,
                     'Progress Report',
                     'Track your therapy progress and achievements',
                     'View Stats',
                     Icons.analytics_rounded,
-                    const Color(0xFF4A90E2), // ✅ BLUE
+                    const Color(0xFF4A90E2),
                     isDark,
                     () {
                       Navigator.push(
@@ -330,14 +379,14 @@ class DashboardHomeScreen extends ConsumerWidget {
                   
                   const SizedBox(height: 16),
                   
-                  // Card 3 - Daily Goals
+                  // Card 4 - Daily Goals
                   _buildTherapyListCard(
                     context,
                     'Daily Goals',
                     'Complete your daily therapy tasks',
                     '5 Tasks',
                     Icons.emoji_events_rounded,
-                    const Color(0xFFFFD700), // ✅ GOLD
+                    const Color(0xFFFFD700),
                     isDark,
                     () {},
                   ),
@@ -352,7 +401,7 @@ class DashboardHomeScreen extends ConsumerWidget {
     );
   }
 
-  // 🎴 FEATURED CARD - ✅ REDESIGNED WITH CONSISTENT COLORS
+  // 🎴 FEATURED CARD
   Widget _buildFeaturedCard(
     BuildContext context,
     String title,
@@ -368,7 +417,6 @@ class DashboardHomeScreen extends ConsumerWidget {
         width: MediaQuery.of(context).size.width * 0.6,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          // ✅ SAME BACKGROUND AS THERAPY LIST
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
@@ -384,7 +432,6 @@ class DashboardHomeScreen extends ConsumerWidget {
         ),
         child: Stack(
           children: [
-            // Background gradient circle
             Positioned(
               top: -40,
               right: -40,
@@ -407,7 +454,6 @@ class DashboardHomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Title
                 Text(
                   title,
                   style: TextStyle(
@@ -418,11 +464,9 @@ class DashboardHomeScreen extends ConsumerWidget {
                   ),
                 ),
                 
-                // Bottom row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Duration badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -452,7 +496,6 @@ class DashboardHomeScreen extends ConsumerWidget {
                       ),
                     ),
                     
-                    // Icon button
                     Container(
                       width: 56,
                       height: 56,
@@ -487,7 +530,7 @@ class DashboardHomeScreen extends ConsumerWidget {
     );
   }
 
-  // 📋 THERAPY LIST CARD - ✅ EXACT SAME AS THERAPY_LIST_SCREEN
+  // 📋 THERAPY LIST CARD
   Widget _buildTherapyListCard(
     BuildContext context,
     String title,

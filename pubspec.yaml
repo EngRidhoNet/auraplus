@@ -37,6 +37,11 @@ dependencies:
   
   # TTS
   flutter_tts: ^4.0.2
+  image_picker: ^1.2.0
+
+  # ML/AI - ✅ USE ONLY pytorch_lite
+  pytorch_lite: ^4.2.5
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -57,6 +62,7 @@ flutter:
     - assets/icons/
     - assets/animations/
     - assets/models/
+    - assets/models/mobilenetv3_autism.ptl  # ✅ ADD THIS
     - assets/audio/
     - assets/unity/
     - assets/therapy_content/
